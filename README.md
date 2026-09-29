@@ -48,10 +48,7 @@ A resposta atual da API contém os versículos em `data`:
 ## Uso
 
 ```ts
-import {
-  mountBibleReferences,
-  parseBibleReferences,
-} from "@coisasdoalto/bible-references";
+import { mountBibleReferences, parseBibleReferences } from "@coisasdoalto/bible-references";
 import "@coisasdoalto/bible-references/style.css";
 
 const references = parseBibleReferences("Leia Romanos 1:1-8 e João 3:16.");

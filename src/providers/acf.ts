@@ -1,5 +1,5 @@
 import { type BibleBookId, getBibleBookById } from "../core/books";
-import type { BibleReference, Passage, PassageProvider, PassageVerse } from "../core/types";
+import type { BibleReference, PassageProvider, PassageVerse } from "../core/types";
 
 export const DEFAULT_ACF_API_BASE_URL =
   "https://8b6197d1-ler-traducaoliteral-com-br.pablodinella.workers.dev/api/v1/bible/acf/passages";
