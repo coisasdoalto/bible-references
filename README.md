@@ -17,6 +17,9 @@ Planejamento inicial e configuração da infraestrutura. A API pública e o pars
 - Vitest
 - Biome
 - hk
+- Tailwind CSS v4
+- clsx
+- Lightning CSS
 - GitHub Actions
 - GitHub Packages primeiro; npm depois
 
@@ -40,6 +43,26 @@ mise run fix
 ```
 
 Todos os pontos de entrada da CI são expostos como tasks do mise, para que o desenvolvimento local e o GitHub Actions executem os mesmos comandos.
+
+## Estilos
+
+Tailwind CSS é usado apenas durante o desenvolvimento e o build. A biblioteca não exige Tailwind no projeto consumidor e não inclui o Preflight/reset global do framework.
+
+Classes condicionais devem ser compostas com `clsx/lite`. O projeto inclui configuração de IntelliSense do Tailwind para chamadas a `clsx(...)` no VS Code.
+
+O build gera CSS estático e minificado em:
+
+```text
+dist/style.css
+```
+
+O arquivo pode ser importado pelo consumidor como:
+
+```ts
+import "@coisasdoalto/bible-references/style.css";
+```
+
+A customização visual pública será exposta por CSS custom properties com prefixo `--br-*`, sem exigir que o consumidor conheça Tailwind.
 
 ## Pacote
 

@@ -1,0 +1,11 @@
+/*
+ * Tailwind is a build-time implementation detail.
+ * Do not add Preflight here: this stylesheet is consumed inside host applications
+ * and must not reset their global styles.
+ */
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+
+@source "../";

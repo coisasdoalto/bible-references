@@ -4,7 +4,9 @@
   "description": "Detect Bible references in web text and turn them into links with optional passage previews.",
   "type": "module",
   "license": "MIT",
-  "sideEffects": false,
+  "sideEffects": [
+    "**/*.css"
+  ],
   "packageManager": "bun@1.4.2",
   "repository": {
     "type": "git",
@@ -29,11 +31,13 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "style": "./dist/style.css",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./style.css": "./dist/style.css"
   },
   "scripts": {
     "dev": "vite",
@@ -43,7 +47,10 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "clsx": "2.1.1",
     "jsdom": "30.1.0",
+    "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "vite": "8.3.0",
     "vitest": "5.0.0"

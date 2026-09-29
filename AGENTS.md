@@ -16,6 +16,9 @@ Use the versions and commands declared by mise. Do not require contributors to i
 - Vitest
 - Biome
 - hk
+- Tailwind CSS
+- clsx
+- Lightning CSS
 - actionlint
 - pinact
 
@@ -60,6 +63,24 @@ Prefer human-readable scripts with clear failures and useful output. File tasks 
 Use Bun for JavaScript package management. Keep dependency versions exact. Commit `bun.lock` after dependency changes once it has been generated locally.
 
 Do not add npm, pnpm, or Yarn lockfiles.
+
+## Styling
+
+Tailwind CSS v4 is a build-time implementation detail. Consumers must receive ordinary static CSS and must not be required to install or configure Tailwind.
+
+Use `@tailwindcss/vite` for Tailwind integration. Vite is responsible for final CSS optimization/minification with Lightning CSS and emits the library stylesheet as `dist/style.css`.
+
+Do not include Tailwind Preflight or another global reset in the distributed stylesheet. Library styles must not unexpectedly alter the host application's global styles.
+
+Use `clsx/lite` for conditional class composition. Keep Tailwind class names complete and statically discoverable; do not construct class fragments with interpolation such as `bg-${color}-500`. Map variants to complete class strings instead.
+
+The public customization contract should use stable CSS custom properties prefixed with `--br-`. Keep Tailwind utility classes an internal implementation detail.
+
+Prefer scoped semantic hooks such as `br-*` classes or `data-br-*` attributes only when consumers need a stable selector. Do not expose generated or incidental utility-class combinations as public API.
+
+The Tailwind stylesheet explicitly scans `src` and intentionally omits Preflight. Keep source detection narrow so the generated CSS contains only utilities used by this package.
+
+VS Code configuration includes Tailwind IntelliSense support for classes inside `clsx(...)`.
 
 ## Architecture
 
