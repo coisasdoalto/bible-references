@@ -6,7 +6,87 @@ O projeto está sendo desenvolvido primeiro para HTML independente de framework,
 
 ## Status
 
-Planejamento inicial e configuração da infraestrutura. A API pública e o parser de referências bíblicas ainda não foram implementados.
+O primeiro MVP já está implementado. Ele inclui:
+
+- parser de referências em português;
+- nomes completos e abreviações dos 66 livros;
+- referências no formato `livro capítulo:versículo` e intervalos;
+- `:` ou `.` como separador entre capítulo e versículo;
+- transformação de text nodes em links sem reescrever `innerHTML`;
+- tooltip por hover e foco;
+- preview limitado a 8 versículos por padrão;
+- provider HTTP para a API ACF;
+- testes de parser, provider e DOM.
+
+A API usada provisoriamente para os previews é:
+
+```text
+https://8b6197d1-ler-traducaoliteral-com-br.pablodinella.workers.dev/api/v1/bible/acf/passages
+```
+
+Por exemplo, `Rm 1:1-8` consulta:
+
+```text
+https://8b6197d1-ler-traducaoliteral-com-br.pablodinella.workers.dev/api/v1/bible/acf/passages/rm/1/1-8
+```
+
+A resposta atual da API contém os versículos em `data`:
+
+```json
+{
+  "translation": "acf",
+  "book": "rm",
+  "chapter": 1,
+  "verses": [1, 2],
+  "data": [
+    { "verse": 1, "text": "..." },
+    { "verse": 2, "text": "..." }
+  ]
+}
+```
+
+## Uso
+
+```ts
+import {
+  mountBibleReferences,
+  parseBibleReferences,
+} from "@coisasdoalto/bible-references";
+import "@coisasdoalto/bible-references/style.css";
+
+const references = parseBibleReferences("Leia Romanos 1:1-8 e João 3:16.");
+
+const bibleReferences = mountBibleReferences(document.body, {
+  maxPreviewVerses: 8,
+
+  // O href final do site ainda pode ser definido pelo consumidor.
+  getHref(reference) {
+    return `https://meu-site.example/${reference.bookId}/${reference.chapter}/${reference.verseStart}`;
+  },
+});
+
+// Para conteúdo inserido posteriormente:
+bibleReferences.refresh();
+
+// Remove listeners/tooltips e restaura o texto dos links criados:
+bibleReferences.destroy();
+```
+
+O parser também aceita formas como:
+
+```text
+João 3:16
+Jo 3:16
+Jo. 3:16
+Jo 3.16
+1 Co 13:4
+1Co 13:4
+1 Coríntios 13:4-7
+```
+
+A camada DOM ignora referências dentro de `script`, `style`, `code`, `pre`, controles de formulário, links existentes, botões, conteúdo editável e elementos marcados com `data-bible-references-ignore`.
+
+Quando `getHref` não é informado, o link usa provisoriamente o mesmo endpoint ACF do preview.
 
 ## Ferramentas
 
@@ -69,7 +149,7 @@ O arquivo pode ser importado pelo consumidor como:
 import "@coisasdoalto/bible-references/style.css";
 ```
 
-A customização visual pública será exposta por CSS custom properties com prefixo `--br-*`, sem exigir que o consumidor conheça Tailwind.
+A customização visual pública usa CSS custom properties com prefixo `--br-*`.
 
 ## Pacote
 
