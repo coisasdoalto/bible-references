@@ -9,3 +9,16 @@
 @import "tailwindcss/utilities.css" layer(utilities) source(none);
 
 @source "../";
+
+@layer components {
+  .br-reference {
+    color: var(--br-reference-color, currentColor);
+  }
+
+  .br-tooltip {
+    max-width: var(--br-tooltip-max-width, 24rem);
+    color: var(--br-tooltip-color, #fff);
+    background: var(--br-tooltip-background, #18181b);
+    border-radius: var(--br-tooltip-radius, 0.5rem);
+  }
+}
