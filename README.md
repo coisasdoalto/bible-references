@@ -1,14 +1,14 @@
 # Bible References
 
-A small web library for detecting Bible references in text, turning them into links, and optionally showing the referenced passage in a tooltip.
+Uma pequena biblioteca web para detectar referências bíblicas em textos, transformá-las em links e, opcionalmente, exibir a passagem referenciada em um tooltip.
 
-The project is being designed for framework-agnostic HTML first, with dedicated React integration planned on top of the same parser and core model.
+O projeto está sendo desenvolvido primeiro para HTML independente de framework, com uma integração dedicada para React planejada sobre o mesmo parser e modelo central.
 
 ## Status
 
-Early planning and infrastructure bootstrap. The public API and Bible-reference parser are not implemented yet.
+Planejamento inicial e configuração da infraestrutura. A API pública e o parser de referências bíblicas ainda não foram implementados.
 
-## Toolchain
+## Ferramentas
 
 - TypeScript
 - Vite Library Mode
@@ -18,18 +18,18 @@ Early planning and infrastructure bootstrap. The public API and Bible-reference 
 - Biome
 - hk
 - GitHub Actions
-- GitHub Packages first; npm later
+- GitHub Packages primeiro; npm depois
 
-## Development
+## Desenvolvimento
 
-Install the project toolchain and dependencies:
+Instale as ferramentas e dependências do projeto:
 
 ```sh
 mise install
 mise run setup
 ```
 
-Useful commands:
+Comandos úteis:
 
 ```sh
 mise run dev
@@ -39,18 +39,18 @@ mise run build
 mise run fix
 ```
 
-All CI entry points are exposed as mise tasks so local development and GitHub Actions execute the same commands.
+Todos os pontos de entrada da CI são expostos como tasks do mise, para que o desenvolvimento local e o GitHub Actions executem os mesmos comandos.
 
-## Package
+## Pacote
 
-The package scope is reserved as:
+O escopo reservado para o pacote é:
 
 ```text
 @coisasdoalto/bible-references
 ```
 
-Initial releases will target GitHub Packages. npm publishing will be enabled later after the organization is created there.
+As versões iniciais serão publicadas no GitHub Packages. A publicação no npm será habilitada depois que a organização for criada por lá.
 
-## License
+## Licença
 
 MIT
