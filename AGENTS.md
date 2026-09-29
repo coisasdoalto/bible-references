@@ -32,6 +32,29 @@ mise run fix
 
 GitHub Actions must call mise tasks rather than duplicate build, lint, test, or publish commands in workflow YAML.
 
+### mise tasks
+
+Keep short, readable commands directly in `mise.toml`.
+
+When a task grows beyond a simple command or task composition — for example it contains multi-line logic, branching, validation, or becomes difficult to read inline — implement it as an executable file task under `.mise/tasks`.
+
+Use subdirectories to preserve grouped task names. For example:
+
+```text
+.mise/tasks/release/verify -> release:verify
+```
+
+Keep a matching metadata entry in `mise.toml` even for file tasks:
+
+```toml
+[tasks."release:verify"]
+description = "Verify release metadata"
+```
+
+Do not add `run` or `file` to that metadata-only entry unless intentionally overriding the discovered file task. This keeps task discovery and implementation in `.mise/tasks` while preserving descriptions, dependencies, environment, and other high-level metadata in `mise.toml`.
+
+Prefer human-readable scripts with clear failures and useful output. File tasks must be executable on Unix.
+
 ## Package management
 
 Use Bun for JavaScript package management. Keep dependency versions exact. Commit `bun.lock` after dependency changes once it has been generated locally.
