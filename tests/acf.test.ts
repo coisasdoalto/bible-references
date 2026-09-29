@@ -18,6 +18,17 @@ const reference: BibleReference = {
   end: 8,
 };
 
+const apiPayload = {
+  translation: "acf",
+  book: "rm",
+  chapter: 1,
+  verses: [1, 2],
+  data: [
+    { verse: 1, text: "Primeiro verso" },
+    { verse: 2, text: "Segundo verso" },
+  ],
+};
+
 describe("ACF passage provider", () => {
   it("builds the range URL used by the MVP API", () => {
     expect(buildAcfPassageUrl(reference)).toBe(
@@ -29,20 +40,8 @@ describe("ACF passage provider", () => {
     expect(buildAcfPassageUrl(reference, { bookSlugs: { ROM: "rom" } })).toContain("/rom/1/1-8");
   });
 
-  it("decodes common verse payload shapes", () => {
-    expect(
-      decodeAcfVerses(
-        {
-          data: {
-            verses: [
-              { verse: 1, text: "Primeiro verso" },
-              { verse: 2, text: "Segundo verso" },
-            ],
-          },
-        },
-        { ...reference, verseEnd: 2 },
-      ),
-    ).toEqual([
+  it("decodes the current ACF API response shape", () => {
+    expect(decodeAcfVerses(apiPayload, { ...reference, verseEnd: 2 })).toEqual([
       { number: 1, text: "Primeiro verso" },
       { number: 2, text: "Segundo verso" },
     ]);
@@ -51,15 +50,10 @@ describe("ACF passage provider", () => {
   it("fetches and normalizes passages", async () => {
     const fetcher = vi.fn(
       async () =>
-        new Response(
-          JSON.stringify({
-            verses: {
-              "1": "Primeiro verso",
-              "2": "Segundo verso",
-            },
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
+        new Response(JSON.stringify(apiPayload), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
     );
 
     const provider = createAcfPassageProvider({

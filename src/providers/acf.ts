@@ -95,17 +95,17 @@ function unwrapVerseCollection(payload: unknown): unknown[] | Record<string, unk
     return undefined;
   }
 
-  for (const key of ["verses", "passages"]) {
-    const value = payload[key];
-    if (Array.isArray(value) || isRecord(value)) {
-      return value;
-    }
-  }
-
   for (const key of ["data", "result", "passage", "chapter"]) {
     const nested = unwrapVerseCollection(payload[key]);
     if (nested !== undefined) {
       return nested;
+    }
+  }
+
+  for (const key of ["verses", "passages"]) {
+    const value = payload[key];
+    if (Array.isArray(value) || isRecord(value)) {
+      return value;
     }
   }
 
