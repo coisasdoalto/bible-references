@@ -3,6 +3,9 @@ import "package://github.com/jdx/hk/releases/download/v2.4.0/hk@2.4.0#/Builtins.
 
 steps {
   ["biome"] = Builtins.biome
+  ["prettier"] = (Builtins.prettier) {
+    glob = List("**/*.md", "**/*.markdown", "**/*.html", "**/*.yml", "**/*.yaml")
+  }
   ["actionlint"] = Builtins.actionlint
   ["pinact"] = Builtins.pinact
   ["mise"] = Builtins.mise
@@ -12,6 +15,11 @@ steps {
 }
 
 hooks {
+  ["pre-commit"] {
+    fix = true
+    stash = "git"
+  }
+
   ["pre-push"] {
     steps {
       ["typecheck"] {

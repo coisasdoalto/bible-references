@@ -5,6 +5,7 @@ hk = "2.4.0"
 biome = "2.5.14"
 actionlint = "1.7.12"
 pinact = "4.1.1"
+"npm:prettier" = "3.9.9"
 
 [env]
 HK_MISE = "1"

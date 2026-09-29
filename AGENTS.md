@@ -15,6 +15,7 @@ Use the versions and commands declared by mise. Do not require contributors to i
 - Bun
 - Vitest
 - Biome
+- Prettier
 - hk
 - Tailwind CSS
 - clsx
@@ -63,6 +64,16 @@ Prefer human-readable scripts with clear failures and useful output. File tasks 
 Use Bun for JavaScript package management. Keep dependency versions exact. Commit `bun.lock` after dependency changes once it has been generated locally.
 
 Do not add npm, pnpm, or Yarn lockfiles.
+
+## Formatting
+
+The hk pre-commit hook formats staged files, stages formatter changes, and stashes unstaged work while the hook runs.
+
+Use Biome for TypeScript/JavaScript and JSON/JSONC formatting and linting. Use Prettier only for Markdown, HTML, and YAML so the two formatters do not overlap.
+
+Prettier is installed as an exact-version mise tool rather than a package dependency. Keep its project defaults in `.prettierrc.json`.
+
+Do not bypass formatting failures by disabling hooks. Use `mise run fix` when formatting or safe automatic fixes are needed across the working tree.
 
 ## Styling
 

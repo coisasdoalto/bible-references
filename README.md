@@ -16,6 +16,7 @@ Planejamento inicial e configuração da infraestrutura. A API pública e o pars
 - mise
 - Vitest
 - Biome
+- Prettier
 - hk
 - Tailwind CSS v4
 - clsx
@@ -43,6 +44,12 @@ mise run fix
 ```
 
 Todos os pontos de entrada da CI são expostos como tasks do mise, para que o desenvolvimento local e o GitHub Actions executem os mesmos comandos.
+
+### Formatação
+
+O pre-commit do hk formata automaticamente os arquivos staged antes do commit. TypeScript e JSON são formatados pelo Biome; Markdown, HTML e YAML são formatados pelo Prettier.
+
+O hook preserva alterações não staged enquanto formata e adiciona novamente ao stage apenas o resultado aplicado aos arquivos do commit.
 
 ## Estilos
 
