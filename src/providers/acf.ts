@@ -1,10 +1,5 @@
-import { getBibleBookById, type BibleBookId } from "../core/books";
-import type {
-  BibleReference,
-  Passage,
-  PassageProvider,
-  PassageVerse,
-} from "../core/types";
+import { type BibleBookId, getBibleBookById } from "../core/books";
+import type { BibleReference, Passage, PassageProvider, PassageVerse } from "../core/types";
 
 export const DEFAULT_ACF_API_BASE_URL =
   "https://8b6197d1-ler-traducaoliteral-com-br.pablodinella.workers.dev/api/v1/bible/acf/passages";
@@ -30,9 +25,7 @@ export function buildAcfPassageUrl(
   return `${baseUrl}/${encodeURIComponent(slug)}/${reference.chapter}/${verses}`;
 }
 
-export function createAcfPassageProvider(
-  options: AcfPassageProviderOptions = {},
-): PassageProvider {
+export function createAcfPassageProvider(options: AcfPassageProviderOptions = {}): PassageProvider {
   const fetcher = options.fetch ?? globalThis.fetch;
 
   if (typeof fetcher !== "function") {
@@ -66,10 +59,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function getString(
-  record: Record<string, unknown>,
-  keys: readonly string[],
-): string | undefined {
+function getString(record: Record<string, unknown>, keys: readonly string[]): string | undefined {
   for (const key of keys) {
     const value = record[key];
     if (typeof value === "string" && value.trim() !== "") {
@@ -80,10 +70,7 @@ function getString(
   return undefined;
 }
 
-function getNumber(
-  record: Record<string, unknown>,
-  keys: readonly string[],
-): number | undefined {
+function getNumber(record: Record<string, unknown>, keys: readonly string[]): number | undefined {
   for (const key of keys) {
     const value = record[key];
 
@@ -126,8 +113,7 @@ function unwrapVerseCollection(payload: unknown): unknown[] | Record<string, unk
   if (
     entries.length > 0 &&
     entries.every(
-      ([key, value]) =>
-        /^\d+$/.test(key) && (typeof value === "string" || isRecord(value)),
+      ([key, value]) => /^\d+$/.test(key) && (typeof value === "string" || isRecord(value)),
     )
   ) {
     return payload;
@@ -168,10 +154,7 @@ function decodeVerse(
   return { number, text };
 }
 
-export function decodeAcfVerses(
-  payload: unknown,
-  reference: BibleReference,
-): PassageVerse[] {
+export function decodeAcfVerses(payload: unknown, reference: BibleReference): PassageVerse[] {
   const collection = unwrapVerseCollection(payload);
   if (collection === undefined) {
     throw new Error("Unsupported ACF passage response shape");
@@ -197,10 +180,7 @@ export function decodeAcfVerses(
   }
 
   const filtered = verses
-    .filter(
-      (verse) =>
-        verse.number >= reference.verseStart && verse.number <= reference.verseEnd,
-    )
+    .filter((verse) => verse.number >= reference.verseStart && verse.number <= reference.verseEnd)
     .sort((left, right) => left.number - right.number);
 
   if (filtered.length === 0) {

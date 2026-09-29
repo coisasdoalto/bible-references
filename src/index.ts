@@ -1,9 +1,14 @@
 export {
+  type BibleReferencesHandle,
+  type MountBibleReferencesOptions,
+  mountBibleReferences,
+} from "./browser/mount";
+export {
   BIBLE_BOOKS,
-  getBibleBookByAlias,
-  getBibleBookById,
   type BibleBook,
   type BibleBookId,
+  getBibleBookByAlias,
+  getBibleBookById,
 } from "./core/books";
 export {
   bibleReferenceKey,
@@ -16,11 +21,6 @@ export type {
   PassageProvider,
   PassageVerse,
 } from "./core/types";
-export {
-  type BibleReferencesHandle,
-  type MountBibleReferencesOptions,
-  mountBibleReferences,
-} from "./browser/mount";
 export {
   type AcfPassageProviderOptions,
   buildAcfPassageUrl,

@@ -26,9 +26,7 @@ describe("ACF passage provider", () => {
   });
 
   it("allows book slug overrides without changing the core model", () => {
-    expect(buildAcfPassageUrl(reference, { bookSlugs: { ROM: "rom" } })).toContain(
-      "/rom/1/1-8",
-    );
+    expect(buildAcfPassageUrl(reference, { bookSlugs: { ROM: "rom" } })).toContain("/rom/1/1-8");
   });
 
   it("decodes common verse payload shapes", () => {
@@ -51,16 +49,17 @@ describe("ACF passage provider", () => {
   });
 
   it("fetches and normalizes passages", async () => {
-    const fetcher = vi.fn(async () =>
-      new Response(
-        JSON.stringify({
-          verses: {
-            "1": "Primeiro verso",
-            "2": "Segundo verso",
-          },
-        }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      ),
+    const fetcher = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            verses: {
+              "1": "Primeiro verso",
+              "2": "Segundo verso",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
     );
 
     const provider = createAcfPassageProvider({

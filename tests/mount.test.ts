@@ -22,9 +22,7 @@ describe("mountBibleReferences", () => {
     handle.destroy();
 
     expect(document.querySelectorAll(".br-reference")).toHaveLength(0);
-    expect(document.querySelector("#content")?.textContent).toBe(
-      "Leia Rm 1:1-8 e João 3:16.",
-    );
+    expect(document.querySelector("#content")?.textContent).toBe("Leia Rm 1:1-8 e João 3:16.");
   });
 
   it("loads at most the configured preview range on focus", async () => {

@@ -1,10 +1,6 @@
 import clsx from "clsx/lite";
 
-import {
-  bibleReferenceKey,
-  formatBibleReference,
-  parseBibleReferences,
-} from "../core/parser";
+import { bibleReferenceKey, formatBibleReference, parseBibleReferences } from "../core/parser";
 import type { BibleReference, Passage, PassageProvider } from "../core/types";
 import { buildAcfPassageUrl, createAcfPassageProvider } from "../providers/acf";
 
@@ -84,8 +80,7 @@ export function mountBibleReferences(
 ): BibleReferencesHandle {
   const document = getDocument(root);
   const provider = options.provider ?? createAcfPassageProvider();
-  const getHref =
-    options.getHref ?? ((reference: BibleReference) => buildAcfPassageUrl(reference));
+  const getHref = options.getHref ?? ((reference: BibleReference) => buildAcfPassageUrl(reference));
   const preview = options.preview ?? true;
   const maxPreviewVerses = options.maxPreviewVerses ?? 8;
 
@@ -139,10 +134,7 @@ export function mountBibleReferences(
     tooltip.hidden = true;
   }
 
-  async function showTooltip(
-    link: HTMLAnchorElement,
-    reference: BibleReference,
-  ): Promise<void> {
+  async function showTooltip(link: HTMLAnchorElement, reference: BibleReference): Promise<void> {
     if (!preview) {
       return;
     }
