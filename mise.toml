@@ -11,7 +11,7 @@ pinact = "4.1.1"
 HK_MISE = "1"
 
 [tasks.setup]
-description = "Install JavaScript dependencies and repository Git hooks"
+description = "Install tools, dependencies and repository Git hooks"
 run = "mise run deps && mise run hooks:install"
 
 [tasks.deps]
@@ -52,7 +52,12 @@ run = "bun run build"
 
 [tasks.check]
 description = "Run lint, types, tests, and build"
-run = "mise run lint && mise run typecheck && mise run test && mise run build"
+run = """
+mise run lint
+mise run typecheck
+mise run test
+mise run build
+"""
 
 [tasks.ci]
 description = "Install dependencies and run the full CI suite"
