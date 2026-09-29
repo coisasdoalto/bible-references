@@ -1,0 +1,54 @@
+{
+  "name": "@coisasdoalto/bible-references",
+  "version": "0.0.0",
+  "description": "Detect Bible references in web text and turn them into links with optional passage previews.",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "packageManager": "bun@1.4.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coisasdoalto/bible-references.git"
+  },
+  "homepage": "https://github.com/coisasdoalto/bible-references#readme",
+  "bugs": {
+    "url": "https://github.com/coisasdoalto/bible-references/issues"
+  },
+  "keywords": [
+    "bible",
+    "references",
+    "html",
+    "dom",
+    "tooltip"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "jsdom": "30.1.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vitest": "5.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}

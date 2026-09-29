@@ -1,0 +1,67 @@
+[tools]
+node = "24.21.0"
+bun = "1.4.2"
+hk = "2.4.0"
+biome = "2.5.14"
+actionlint = "1.7.12"
+pinact = "4.1.1"
+
+[env]
+HK_MISE = "1"
+
+[tasks.setup]
+description = "Install JavaScript dependencies and repository Git hooks"
+run = "mise run deps && mise run hooks:install"
+
+[tasks.deps]
+description = "Install JavaScript dependencies"
+run = "bun install"
+
+[tasks."deps:ci"]
+description = "Install JavaScript dependencies without changing the lockfile"
+run = "bun install --frozen-lockfile"
+
+[tasks."hooks:install"]
+description = "Install mise-aware hk Git hooks"
+run = "hk install --mise"
+
+[tasks.dev]
+description = "Run Vite in development mode"
+run = "bun run dev"
+
+[tasks.lint]
+description = "Run repository linters through hk"
+run = "hk check --all"
+
+[tasks.fix]
+description = "Apply safe automatic fixes through hk"
+run = "hk fix --all"
+
+[tasks.typecheck]
+description = "Type-check the project"
+run = "bun run typecheck"
+
+[tasks.test]
+description = "Run the test suite"
+run = "bun run test"
+
+[tasks.build]
+description = "Build the library and TypeScript declarations"
+run = "bun run build"
+
+[tasks.check]
+description = "Run lint, types, tests, and build"
+run = "mise run lint && mise run typecheck && mise run test && mise run build"
+
+[tasks.ci]
+description = "Install dependencies and run the full CI suite"
+run = "mise run deps:ci && mise run check"
+
+[tasks."release:verify"]
+description = "Verify that RELEASE_TAG matches package.json version"
+run = """node --input-type=module -e "import fs from 'node:fs'; const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); const expected = 'v' + pkg.version; const actual = process.env.RELEASE_TAG; if (!actual || actual !== expected) { console.error('Release tag ' + (actual ?? '<missing>') + ' does not match package version ' + expected); process.exit(1); }"
+"""
+
+[tasks."publish:github"]
+description = "Build and publish the package to GitHub Packages"
+run = "mise run build && bun publish --registry https://npm.pkg.github.com"

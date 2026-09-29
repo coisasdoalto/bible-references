@@ -1,0 +1,25 @@
+amends "package://github.com/jdx/hk/releases/download/v2.4.0/hk@2.4.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v2.4.0/hk@2.4.0#/Builtins.pkl"
+
+steps {
+  ["biome"] = Builtins.biome
+  ["actionlint"] = Builtins.actionlint
+  ["pinact"] = Builtins.pinact
+  ["mise"] = Builtins.mise
+  ["merge-conflict"] = Builtins.check_merge_conflict
+  ["trailing-whitespace"] = Builtins.trailing_whitespace
+  ["newlines"] = Builtins.newlines
+}
+
+hooks {
+  ["pre-push"] {
+    steps {
+      ["typecheck"] {
+        check = "mise run typecheck"
+      }
+      ["test"] {
+        check = "mise run test"
+      }
+    }
+  }
+}
