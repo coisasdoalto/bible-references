@@ -1,0 +1,16 @@
+{
+  "name": "@coisasdoalto/bible-references-example-vanilla",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "bun --cwd ../.. run build",
+    "dev": "vite",
+    "build": "bun --cwd ../.. run build && vite build"
+  },
+  "dependencies": {
+    "@coisasdoalto/bible-references": "file:../.."
+  },
+  "devDependencies": {
+    "vite": "8.3.0"
+  }
+}
