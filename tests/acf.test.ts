@@ -32,7 +32,7 @@ const apiPayload = {
 describe("ACF passage provider", () => {
   it("builds the range URL used by the MVP API", () => {
     expect(buildAcfPassageUrl(reference)).toBe(
-      "https://8b6197d1-ler-traducaoliteral-com-br.pablodinella.workers.dev/api/v1/bible/acf/passages/rm/1/1-8",
+      "https://biblias.app/api/v1/bible/acf/passages/rm/1/1-8",
     );
   });
 

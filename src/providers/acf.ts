@@ -1,8 +1,7 @@
 import { type BibleBookId, getBibleBookById } from "../core/books";
 import type { BibleReference, PassageProvider, PassageVerse } from "../core/types";
 
-export const DEFAULT_ACF_API_BASE_URL =
-  "https://8b6197d1-ler-traducaoliteral-com-br.pablodinella.workers.dev/api/v1/bible/acf/passages";
+export const DEFAULT_ACF_API_BASE_URL = "https://biblias.app/api/v1/bible/acf/passages";
 
 export interface AcfPassageProviderOptions {
   readonly baseUrl?: string;

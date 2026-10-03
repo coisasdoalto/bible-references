@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --cwd ../.. install --frozen-lockfile && bun --cwd ../.. run build && vite --force",
-    "build": "bun --cwd ../.. install --frozen-lockfile && bun --cwd ../.. run build && vite build"
+    "dev": "bun run --cwd \"$(cd ../.. && pwd)\" build && vite --force",
+    "build": "bun run --cwd \"$(cd ../.. && pwd)\" build && vite build"
   },
   "dependencies": {
     "@coisasdoalto/bible-references": "file:../.."
