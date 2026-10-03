@@ -1,15 +1,19 @@
 import type { BibleBookId } from "./books";
 
-export interface BibleReference {
+interface BibleReferenceLocation {
   readonly raw: string;
   readonly bookId: BibleBookId;
   readonly bookName: string;
   readonly chapter: number;
-  readonly verseStart: number;
-  readonly verseEnd: number;
   readonly start: number;
   readonly end: number;
 }
+
+export type BibleReference = BibleReferenceLocation &
+  (
+    | { readonly verseStart: number; readonly verseEnd: number }
+    | { readonly verseStart: null; readonly verseEnd: null }
+  );
 
 export interface PassageVerse {
   readonly number: number;

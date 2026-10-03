@@ -16,7 +16,11 @@
   }
 
   .br-tooltip {
-    max-width: var(--br-tooltip-max-width, 24rem);
+    box-sizing: border-box;
+    max-width: min(var(--br-tooltip-max-width, 24rem), calc(100vw - 2rem));
+    max-height: min(var(--br-tooltip-max-height, 24rem), calc(100dvh - 2rem));
+    overflow-y: auto;
+    overscroll-behavior: contain;
     color: var(--br-tooltip-color, #fff);
     background: var(--br-tooltip-background, #18181b);
     border-radius: var(--br-tooltip-radius, 0.5rem);

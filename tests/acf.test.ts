@@ -29,7 +29,41 @@ const apiPayload = {
   ],
 };
 
+class FakeChapterFetch {
+  readonly requests: string[] = [];
+  readonly fetch: typeof globalThis.fetch = async (input): Promise<Response> => {
+    this.requests.push(String(input));
+    return new Response(
+      JSON.stringify({
+        data: [
+          { verse: 1, text: "Louvai ao SENHOR todas as nações." },
+          { verse: 2, text: "Louvai ao SENHOR." },
+        ],
+      }),
+    );
+  };
+}
+
 describe("ACF passage provider", () => {
+  it("fetches an entire chapter without a verse URL suffix", async () => {
+    const chapter: BibleReference = {
+      ...reference,
+      raw: "Sl 117",
+      bookId: "PSA",
+      bookName: "Salmos",
+      chapter: 117,
+      verseStart: null,
+      verseEnd: null,
+    };
+    const fake = new FakeChapterFetch();
+    const passage = await createAcfPassageProvider({ fetch: fake.fetch }).getPassage(chapter);
+    expect(fake.requests).toEqual(["https://biblias.app/api/v1/bible/acf/passages/sl/117"]);
+    expect(passage.verses.map((verse) => verse.number)).toEqual([1, 2]);
+    expect(decodeAcfVerses({ data: ["Primeiro", "Segundo"] }, chapter)).toEqual([
+      { number: 1, text: "Primeiro" },
+      { number: 2, text: "Segundo" },
+    ]);
+  });
   it("builds the range URL used by the MVP API", () => {
     expect(buildAcfPassageUrl(reference)).toBe(
       "https://biblias.app/api/v1/bible/acf/passages/rm/1/1-8",

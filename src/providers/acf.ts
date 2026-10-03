@@ -9,21 +9,26 @@ export interface AcfPassageProviderOptions {
   readonly fetch?: typeof globalThis.fetch;
 }
 
+/** Build an ACF passage or chapter URL. Example: buildAcfPassageUrl(reference). */
 export function buildAcfPassageUrl(
   reference: BibleReference,
   options: Pick<AcfPassageProviderOptions, "baseUrl" | "bookSlugs"> = {},
 ): string {
   const book = getBibleBookById(reference.bookId);
   const slug = options.bookSlugs?.[reference.bookId] ?? book.apiSlug;
+  const baseUrl = (options.baseUrl ?? DEFAULT_ACF_API_BASE_URL).replace(/\/$/, "");
+  const chapterUrl = `${baseUrl}/${encodeURIComponent(slug)}/${reference.chapter}`;
+  if (reference.verseStart === null) {
+    return chapterUrl;
+  }
   const verses =
     reference.verseStart === reference.verseEnd
       ? String(reference.verseStart)
       : `${reference.verseStart}-${reference.verseEnd}`;
-  const baseUrl = (options.baseUrl ?? DEFAULT_ACF_API_BASE_URL).replace(/\/$/, "");
-
-  return `${baseUrl}/${encodeURIComponent(slug)}/${reference.chapter}/${verses}`;
+  return `${chapterUrl}/${verses}`;
 }
 
+/** Fetch verse selections and whole chapters. Example: createAcfPassageProvider({ fetch }).getPassage(reference). */
 export function createAcfPassageProvider(options: AcfPassageProviderOptions = {}): PassageProvider {
   const fetcher = options.fetch ?? globalThis.fetch;
 
@@ -153,6 +158,7 @@ function decodeVerse(
   return { number, text };
 }
 
+/** Normalize the selected verses, or the entire chapter. Example: decodeAcfVerses(payload, reference). */
 export function decodeAcfVerses(payload: unknown, reference: BibleReference): PassageVerse[] {
   const collection = unwrapVerseCollection(payload);
   if (collection === undefined) {
@@ -163,7 +169,7 @@ export function decodeAcfVerses(payload: unknown, reference: BibleReference): Pa
 
   if (Array.isArray(collection)) {
     collection.forEach((value, index) => {
-      const verse = decodeVerse(value, reference.verseStart + index);
+      const verse = decodeVerse(value, (reference.verseStart ?? 1) + index);
       if (verse) {
         verses.push(verse);
       }
@@ -179,7 +185,11 @@ export function decodeAcfVerses(payload: unknown, reference: BibleReference): Pa
   }
 
   const filtered = verses
-    .filter((verse) => verse.number >= reference.verseStart && verse.number <= reference.verseEnd)
+    .filter(
+      (verse) =>
+        reference.verseStart === null ||
+        (verse.number >= reference.verseStart && verse.number <= reference.verseEnd),
+    )
     .sort((left, right) => left.number - right.number);
 
   if (filtered.length === 0) {

@@ -19,7 +19,7 @@ const referenceClassName = clsx(
 
 const tooltipClassName = clsx(
   "br-tooltip",
-  "pointer-events-none fixed z-[2147483647] w-max px-3 py-2",
+  "fixed z-[2147483647] w-max px-3 py-2",
   "text-sm leading-relaxed shadow-lg",
 );
 
@@ -64,6 +64,9 @@ function shouldIgnoreTextNode(node: Text): boolean {
 }
 
 function previewReference(reference: BibleReference, maxVerses: number): BibleReference {
+  if (reference.verseStart === null) {
+    return reference;
+  }
   return {
     ...reference,
     verseEnd: Math.min(reference.verseEnd, reference.verseStart + maxVerses - 1),
@@ -74,6 +77,7 @@ function formatPassageText(passage: Passage): string {
   return passage.verses.map((verse) => `${verse.number} ${verse.text}`).join(" ");
 }
 
+/** Link references and display passage previews. Example: mountBibleReferences(document.body). */
 export function mountBibleReferences(
   root: ParentNode,
   options: MountBibleReferencesOptions = {},
@@ -98,6 +102,7 @@ export function mountBibleReferences(
   tooltip.id = `br-tooltip-${++tooltipSequence}`;
   tooltip.className = tooltipClassName;
   tooltip.setAttribute("role", "tooltip");
+  tooltip.tabIndex = 0;
   tooltip.hidden = true;
 
   const tooltipLabel = document.createElement("strong");
@@ -110,22 +115,38 @@ export function mountBibleReferences(
   (document.body ?? document.documentElement).append(tooltip);
 
   let activeLink: HTMLAnchorElement | null = null;
+  let tooltipHovered = false;
+  let tooltipFocused = false;
+  let hideTimeout: ReturnType<typeof setTimeout> | undefined;
 
   function positionTooltip(link: HTMLAnchorElement): void {
     const rect = link.getBoundingClientRect();
     const viewportWidth =
       document.documentElement.clientWidth || document.defaultView?.innerWidth || 1024;
-    const top = Math.max(8, rect.top - 8);
-    const left = Math.min(Math.max(rect.left + rect.width / 2, 16), viewportWidth - 16);
+    const viewportHeight =
+      document.documentElement.clientHeight || document.defaultView?.innerHeight || 768;
+    const { width, height } = tooltip.getBoundingClientRect();
+    const preferredTop = rect.top >= height + 16 ? rect.top - height : rect.bottom;
+    const top = Math.max(16, Math.min(preferredTop, viewportHeight - height - 16));
+    const left = Math.max(
+      16,
+      Math.min(rect.left + rect.width / 2 - width / 2, viewportWidth - width - 16),
+    );
 
     tooltip.style.top = `${top}px`;
     tooltip.style.left = `${left}px`;
-    tooltip.style.transform = "translate(-50%, -100%)";
   }
 
   function hideTooltip(link: HTMLAnchorElement): void {
     const state = states.get(link);
-    if (!state || state.hovered || state.focused || activeLink !== link) {
+    if (
+      !state ||
+      state.hovered ||
+      state.focused ||
+      tooltipHovered ||
+      tooltipFocused ||
+      activeLink !== link
+    ) {
       return;
     }
 
@@ -134,16 +155,32 @@ export function mountBibleReferences(
     tooltip.hidden = true;
   }
 
+  function scheduleTooltipHide(link: HTMLAnchorElement): void {
+    clearTimeout(hideTimeout);
+    hideTimeout = setTimeout(() => hideTooltip(link), 150);
+  }
+
+  function renderTooltipPassage(passage: Passage, original: BibleReference): void {
+    const selected = passage.reference;
+    const truncated =
+      selected.verseEnd !== null &&
+      original.verseEnd !== null &&
+      selected.verseEnd < original.verseEnd;
+    tooltipText.textContent = `${formatPassageText(passage)}${truncated ? " …" : ""}`;
+  }
+
   async function showTooltip(link: HTMLAnchorElement, reference: BibleReference): Promise<void> {
     if (!preview) {
       return;
     }
 
     activeLink = link;
+    clearTimeout(hideTimeout);
     link.setAttribute("aria-describedby", tooltip.id);
     tooltip.hidden = false;
     tooltipLabel.textContent = formatBibleReference(reference);
     tooltipText.textContent = "Carregando passagem…";
+    tooltip.scrollTop = 0;
     positionTooltip(link);
 
     const previewed = previewReference(reference, maxPreviewVerses);
@@ -151,7 +188,7 @@ export function mountBibleReferences(
     const cached = cache.get(key);
 
     if (cached) {
-      tooltipText.textContent = formatPassageText(cached);
+      renderTooltipPassage(cached, reference);
       positionTooltip(link);
       return;
     }
@@ -164,8 +201,7 @@ export function mountBibleReferences(
       cache.set(key, passage);
 
       if (activeLink === link) {
-        const truncated = previewed.verseEnd < reference.verseEnd;
-        tooltipText.textContent = `${formatPassageText(passage)}${truncated ? " …" : ""}`;
+        renderTooltipPassage(passage, reference);
         positionTooltip(link);
       }
     } catch {
@@ -180,6 +216,17 @@ export function mountBibleReferences(
   function bindLink(link: HTMLAnchorElement, reference: BibleReference): void {
     const state: LinkState = { hovered: false, focused: false };
     states.set(link, state);
+    link.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "ArrowDown" && activeLink === link && !tooltip.hidden) {
+          event.preventDefault();
+          tooltip.focus();
+        }
+        handleTooltipKeys(event);
+      },
+      { signal: eventController.signal },
+    );
 
     link.addEventListener(
       "mouseenter",
@@ -194,7 +241,7 @@ export function mountBibleReferences(
       "mouseleave",
       () => {
         state.hovered = false;
-        hideTooltip(link);
+        scheduleTooltipHide(link);
       },
       { signal: eventController.signal },
     );
@@ -212,10 +259,42 @@ export function mountBibleReferences(
       "blur",
       () => {
         state.focused = false;
-        hideTooltip(link);
+        scheduleTooltipHide(link);
       },
       { signal: eventController.signal },
     );
+  }
+
+  function handleTooltipKeys(event: KeyboardEvent): void {
+    if (event.key !== "Escape" || !activeLink) {
+      return;
+    }
+    const link = activeLink;
+    link.focus();
+    link.removeAttribute("aria-describedby");
+    tooltipHovered = false;
+    tooltipFocused = false;
+    activeLink = null;
+    tooltip.hidden = true;
+  }
+
+  function updateTooltipInteraction(event: Event): void {
+    if (event.type === "mouseenter" || event.type === "mouseleave") {
+      tooltipHovered = event.type === "mouseenter";
+    } else {
+      tooltipFocused = event.type === "focus";
+    }
+    if (activeLink && !tooltipHovered && !tooltipFocused) {
+      scheduleTooltipHide(activeLink);
+    }
+  }
+
+  function bindTooltipEvents(): void {
+    const listenerOptions = { signal: eventController.signal };
+    for (const eventName of ["mouseenter", "mouseleave", "focus", "blur"] as const) {
+      tooltip.addEventListener(eventName, updateTooltipInteraction, listenerOptions);
+    }
+    tooltip.addEventListener("keydown", handleTooltipKeys, listenerOptions);
   }
 
   function replaceTextNode(node: Text): void {
@@ -272,11 +351,13 @@ export function mountBibleReferences(
     }
   }
 
+  bindTooltipEvents();
   refresh();
 
   return {
     refresh,
     destroy() {
+      clearTimeout(hideTimeout);
       eventController.abort();
 
       for (const controller of requestControllers) {

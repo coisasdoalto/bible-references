@@ -10,24 +10,25 @@ O primeiro MVP já está implementado. Ele inclui:
 
 - parser de referências em português;
 - nomes completos e abreviações dos 66 livros;
-- referências no formato `livro capítulo:versículo` e intervalos;
+- referências no formato `livro capítulo`, `livro capítulo:versículo` e intervalos;
 - `:` ou `.` como separador entre capítulo e versículo;
 - transformação de text nodes em links sem reescrever `innerHTML`;
 - tooltip por hover e foco;
-- preview limitado a 8 versículos por padrão;
+- preview de intervalos limitado a 8 versículos por padrão;
+- capítulos inteiros em tooltips com rolagem por mouse ou teclado;
 - provider HTTP para a API ACF;
 - testes de parser, provider e DOM.
 
 A API usada provisoriamente para os previews é:
 
 ```text
-https://8b6197d1-ler-traducaoliteral-com-br.pablodinella.workers.dev/api/v1/bible/acf/passages
+https://biblias.app/api/v1/bible/acf/passages
 ```
 
 Por exemplo, `Rm 1:1-8` consulta:
 
 ```text
-https://8b6197d1-ler-traducaoliteral-com-br.pablodinella.workers.dev/api/v1/bible/acf/passages/rm/1/1-8
+https://biblias.app/api/v1/bible/acf/passages/rm/1/1-8
 ```
 
 A resposta atual da API contém os versículos em `data`:
@@ -58,7 +59,8 @@ const bibleReferences = mountBibleReferences(document.body, {
 
   // O href final do site ainda pode ser definido pelo consumidor.
   getHref(reference) {
-    return `https://meu-site.example/${reference.bookId}/${reference.chapter}/${reference.verseStart}`;
+    const chapterUrl = `https://meu-site.example/${reference.bookId}/${reference.chapter}`;
+    return reference.verseStart === null ? chapterUrl : `${chapterUrl}/${reference.verseStart}`;
   },
 });
 
@@ -79,7 +81,18 @@ Jo 3.16
 1 Co 13:4
 1Co 13:4
 1 Coríntios 13:4-7
+Sl 117
+Salmos 119
 ```
+
+Referências sem versículos têm `verseStart` e `verseEnd` iguais a `null`. O provider
+carrega o capítulo inteiro, sem aplicar `maxPreviewVerses`, usando uma URL como
+`https://biblias.app/api/v1/bible/acf/passages/sl/117`.
+
+O tooltip permanece aberto enquanto o link ou o tooltip recebe hover ou foco.
+Com o link focado, pressione `↓` para focar o tooltip e usar as teclas de rolagem;
+`Escape` fecha o tooltip e devolve o foco ao link. A altura máxima pode ser
+personalizada com `--br-tooltip-max-height` (padrão: `24rem`), sempre limitada à tela.
 
 A camada DOM ignora referências dentro de `script`, `style`, `code`, `pre`, controles de formulário, links existentes, botões, conteúdo editável e elementos marcados com `data-bible-references-ignore`.
 
