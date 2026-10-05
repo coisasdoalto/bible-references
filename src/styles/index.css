@@ -17,6 +17,9 @@
     color: var(--br-reference-color, currentColor);
     text-decoration-color: var(--br-c-accent);
     border-radius: 0.125rem;
+
+    /* A tap opens the preview, so the long-press link menu is not needed on iOS. */
+    -webkit-touch-callout: none;
   }
 
   .br-reference:hover {

@@ -91,6 +91,8 @@ Referências sem versículos têm `verseStart` e `verseEnd` iguais a `null`. O p
 carrega o capítulo inteiro, sem aplicar `maxPreviewVerses`, usando uma URL como
 `https://biblias.app/api/v1/bible/acf/passages/sl/117`.
 
+A referência não navega ao ser clicada: clique ou toque abrem o tooltip (no desktop, hover e foco também abrem). O tooltip fecha ao rolar a página, ao tocar fora dele ou com `Escape`; rolar dentro do tooltip não o fecha.
+
 O tooltip permanece aberto enquanto o link ou o tooltip recebe hover ou foco.
 Com o link focado, pressione `↓` para focar o tooltip e usar as teclas de rolagem;
 `Escape` fecha o tooltip e devolve o foco ao link. A largura e a altura máximas podem ser

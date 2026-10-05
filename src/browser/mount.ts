@@ -36,6 +36,9 @@ interface LinkState {
   focused: boolean;
 }
 
+/** Scroll events right after opening are ignored: focusing a link can scroll it into view. */
+const SCROLL_CLOSE_GRACE_MS = 150;
+
 let tooltipSequence = 0;
 
 function getDocument(root: ParentNode): Document {
@@ -116,7 +119,27 @@ export function mountBibleReferences(
   let activeLink: HTMLAnchorElement | null = null;
   let tooltipHovered = false;
   let tooltipFocused = false;
+  let openedAt = 0;
   let hideTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  function closeTooltip(): void {
+    clearTimeout(hideTimeout);
+    const link = activeLink;
+    if (!link) {
+      return;
+    }
+
+    const state = states.get(link);
+    if (state) {
+      state.hovered = false;
+      state.focused = false;
+    }
+    link.removeAttribute("aria-describedby");
+    tooltipHovered = false;
+    tooltipFocused = false;
+    activeLink = null;
+    tooltip.hidden = true;
+  }
 
   function hideTooltip(link: HTMLAnchorElement): void {
     const state = states.get(link);
@@ -147,6 +170,7 @@ export function mountBibleReferences(
     }
 
     activeLink = link;
+    openedAt = performance.now();
     clearTimeout(hideTimeout);
     link.setAttribute("aria-describedby", tooltip.id);
     tooltip.hidden = false;
@@ -199,6 +223,16 @@ export function mountBibleReferences(
       { signal: eventController.signal },
     );
 
+    // The reference never navigates: a click or tap opens the preview instead.
+    link.addEventListener(
+      "click",
+      (event) => {
+        event.preventDefault();
+        void showTooltip(link, reference);
+      },
+      { signal: eventController.signal },
+    );
+
     link.addEventListener(
       "mouseenter",
       () => {
@@ -240,13 +274,46 @@ export function mountBibleReferences(
     if (event.key !== "Escape" || !activeLink) {
       return;
     }
-    const link = activeLink;
-    link.focus();
-    link.removeAttribute("aria-describedby");
-    tooltipHovered = false;
-    tooltipFocused = false;
-    activeLink = null;
-    tooltip.hidden = true;
+    activeLink.focus();
+    closeTooltip();
+  }
+
+  function isInsideTooltipOrReference(target: EventTarget | null): boolean {
+    if (!(target instanceof Element)) {
+      return false;
+    }
+    const link = target.closest("a");
+    return tooltip.contains(target) || (link !== null && generatedLinks.has(link));
+  }
+
+  function bindDismissEvents(): void {
+    const listenerOptions = { signal: eventController.signal };
+
+    // Scroll events do not bubble, so listen in the capture phase to catch any scroll container.
+    document.defaultView?.addEventListener(
+      "scroll",
+      (event) => {
+        if (
+          activeLink &&
+          !(event.target instanceof Node && tooltip.contains(event.target)) &&
+          performance.now() - openedAt > SCROLL_CLOSE_GRACE_MS
+        ) {
+          closeTooltip();
+        }
+      },
+      { ...listenerOptions, capture: true, passive: true },
+    );
+
+    // Taps outside do not reliably emit mouseleave/blur on touch devices.
+    document.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (activeLink && !isInsideTooltipOrReference(event.target)) {
+          closeTooltip();
+        }
+      },
+      listenerOptions,
+    );
   }
 
   function updateTooltipInteraction(event: Event): void {
@@ -326,6 +393,7 @@ export function mountBibleReferences(
   }
 
   bindTooltipEvents();
+  bindDismissEvents();
   refresh();
 
   return {

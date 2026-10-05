@@ -228,4 +228,61 @@ describe("mountBibleReferences", () => {
     expect(document.querySelector(".br-tooltip")?.getAttribute("data-br-theme")).toBe("dark");
     handle.destroy();
   });
+
+  it("opens the preview on click or tap without navigating", () => {
+    document.body.innerHTML = "<p>Sl 117</p>";
+    const handle = mountBibleReferences(document.body, { provider: new FakeChapterProvider() });
+    const link = requireFixtureElement<HTMLAnchorElement>(".br-reference");
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    link.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(true);
+    expect(tooltip.hidden).toBe(false);
+    handle.destroy();
+  });
+
+  it("closes when the page scrolls but not when the tooltip scrolls", async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = "<p>Sl 117</p>";
+    const handle = mountBibleReferences(document.body, { provider: new FakeChapterProvider() });
+    const link = requireFixtureElement<HTMLAnchorElement>(".br-reference");
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+    const body = requireFixtureElement<HTMLElement>(".br-tooltip-body");
+
+    link.dispatchEvent(new MouseEvent("mouseenter"));
+    window.dispatchEvent(new Event("scroll"));
+    expect(tooltip.hidden).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(200);
+    body.dispatchEvent(new Event("scroll"));
+    expect(tooltip.hidden).toBe(false);
+
+    document.body.dispatchEvent(new Event("scroll"));
+    expect(tooltip.hidden).toBe(true);
+    expect(link.hasAttribute("aria-describedby")).toBe(false);
+
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(tooltip.hidden).toBe(false);
+    handle.destroy();
+    await vi.runAllTimersAsync();
+  });
+
+  it("closes when pressing outside the tooltip and its references", () => {
+    document.body.innerHTML = "<p>Sl 117</p><div id='outside'>Fora</div>";
+    const handle = mountBibleReferences(document.body, { provider: new FakeChapterProvider() });
+    const link = requireFixtureElement<HTMLAnchorElement>(".br-reference");
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+    const outside = requireFixtureElement<HTMLElement>("#outside");
+
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    tooltip.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    link.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    expect(tooltip.hidden).toBe(false);
+
+    outside.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    expect(tooltip.hidden).toBe(true);
+    handle.destroy();
+  });
 });
