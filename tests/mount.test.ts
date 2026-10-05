@@ -561,6 +561,38 @@ describe("mountBibleReferences selector", () => {
     expect(referenceTexts()).toEqual([]);
   });
 
+  it("unlinks content that stopped matching the selector on refresh", () => {
+    document.body.innerHTML = `<p class="bible" id="p">Leia Rm 1:1 agora</p>`;
+    const paragraph = requireFixtureElement("#p");
+    const handle = mountBibleReferences(document.body, { preview: false, selector: ".bible" });
+    expect(referenceTexts()).toEqual(["Rm 1:1"]);
+
+    paragraph.classList.remove("bible");
+    handle.refresh();
+
+    expect(referenceTexts()).toEqual([]);
+    expect(paragraph.textContent).toBe("Leia Rm 1:1 agora");
+    expect(paragraph.childNodes).toHaveLength(1);
+
+    paragraph.classList.add("bible");
+    handle.refresh();
+    expect(referenceTexts()).toEqual(["Rm 1:1"]);
+    handle.destroy();
+  });
+
+  it("unlinks content that became ignored on refresh", () => {
+    document.body.innerHTML = `<p id="p">Leia Rm 1:1 agora</p>`;
+    const paragraph = requireFixtureElement("#p");
+    const handle = mountBibleReferences(document.body, { preview: false });
+
+    paragraph.setAttribute("data-bible-references-ignore", "");
+    handle.refresh();
+
+    expect(referenceTexts()).toEqual([]);
+    expect(paragraph.textContent).toBe("Leia Rm 1:1 agora");
+    handle.destroy();
+  });
+
   it("links matching elements added later and leaves the rest alone", async () => {
     document.body.innerHTML = `<main id="main"></main>`;
     const main = requireFixtureElement("#main");

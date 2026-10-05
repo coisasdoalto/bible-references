@@ -115,17 +115,18 @@ export function mountBibleReferences(
     return match !== null && rootNode.contains(match) ? match : null;
   }
 
-  function isEligible(node: Text): boolean {
-    if (owned.has(node)) {
-      return false;
-    }
-
+  /** Whether a text node is in a place this mount reads, ignoring whether it already split it. */
+  function isReadable(node: Text): boolean {
     const parent = node.parentElement;
     if (parent === null || parent.closest(IGNORED_ANCESTORS) !== null) {
       return false;
     }
 
     return selector === undefined || findSelectorMatch(parent) !== null;
+  }
+
+  function isEligible(node: Text): boolean {
+    return !owned.has(node) && isReadable(node);
   }
 
   /** The parts of a node to walk: the node itself, or only the elements matching the selector. */
@@ -258,9 +259,14 @@ export function mountBibleReferences(
   /**
    * Undo the splits the host broke, whether or not anything was observed: the node left the
    * root, was rewritten, or was moved away from its generated nodes. Nodes that need another
-   * look are added to `rescan`.
+   * look are added to `rescan`. With `recheckLocation`, a split node that is no longer in a place
+   * this mount reads (its element stopped matching the selector, or became ignored) is undone too.
    */
-  function reconcile(records: readonly MutationRecord[], rescan: Set<Node>): void {
+  function reconcile(
+    records: readonly MutationRecord[],
+    rescan: Set<Node>,
+    recheckLocation = false,
+  ): void {
     for (const record of records) {
       if (record.type === "characterData" && splits.has(record.target as Text)) {
         // The host rewrote a split node: its text is now the whole new text.
@@ -280,6 +286,8 @@ export function mountBibleReferences(
         // Moved without the generated nodes: its text is the prefix, so restore the whole text.
         unsplit(node, true);
         rescan.add(node);
+      } else if (recheckLocation && !isReadable(node)) {
+        unsplit(node, true);
       }
     }
   }
@@ -312,7 +320,7 @@ export function mountBibleReferences(
     }
 
     // Settle what the host did since the last scan; the full scan below covers the rest.
-    reconcile(observer?.takeRecords() ?? [], new Set());
+    reconcile(observer?.takeRecords() ?? [], new Set(), true);
     for (const region of regionsWithin(rootNode)) {
       scan(region);
     }

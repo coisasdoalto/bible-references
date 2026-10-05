@@ -145,7 +145,7 @@ O `BibleReferencesProvider` é um wrapper sobre o `mountBibleReferences` com `ob
 Coloque o provider só onde o app mostra texto bíblico. Quanto menor a região, menos a biblioteca precisa ler. Também é possível colocá-lo em volta do app inteiro, e `selector` restringe a busca (`<BibleReferencesProvider selector=".bible">`).
 
 - Recebe as mesmas opções do `mountBibleReferences` (`provider`, `getHref`, `preview`, `theme`, `openIn`, `selector`). Mantenha `provider` e `getHref` estáveis (fora do componente, em `useMemo` ou `useCallback`): quando mudam, a instância é recriada.
-- `container` aceita um elemento ou um `ref`, para anexar o tooltip dentro de um modal.
+- `container` aceita um elemento ou um `ref`, para anexar o tooltip dentro de um modal. Um `ref` é lido quando o provider renderiza: se o elemento dele aparecer ou mudar sem o provider renderizar de novo (um modal montado por um componente filho, por exemplo), passe o próprio elemento, guardado em estado com um `ref` por callback.
 - `as` troca a tag do wrapper (`"div"` por padrão), e `className`, `style` e as demais props de `div` vão para ele. `display: contents` deixa o wrapper fora do layout, mas seletores como `.pai > p` deixam de enxergar os filhos; use `as` e `className` se precisar de um elemento de verdade.
 - Os links são criados no navegador, depois da montagem. Na renderização no servidor (Astro, Next.js) o HTML sai sem links e sem tooltip, e eles aparecem depois da hidratação.
 - Providers aninhados não fazem sentido: o de fora liga primeiro, e o de dentro não encontra mais texto para ligar.

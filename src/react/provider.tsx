@@ -25,7 +25,9 @@ export interface BibleReferencesProviderProps
   readonly theme?: TooltipTheme;
   /**
    * Element (or ref to one) that receives the tooltip. Defaults to the document body. Use an
-   * element inside a modal or popover so hover and taps on the tooltip count as inside it.
+   * element inside a modal or popover so hover and taps on the tooltip count as inside it. A ref
+   * is read when the provider renders: if its element appears or changes without the provider
+   * rendering, pass the element itself (from state or a callback ref) instead.
    */
   readonly container?: HTMLElement | RefObject<HTMLElement | null> | null;
   /** Where the tooltip footer link opens. Defaults to "new-tab". */
