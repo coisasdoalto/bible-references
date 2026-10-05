@@ -5,7 +5,7 @@
     "": {
       "name": "@coisasdoalto/bible-references-example-vanilla",
       "dependencies": {
-        "@coisasdoalto/bible-references": "0.1.0",
+        "@coisasdoalto/bible-references": "0.2.0",
       },
       "devDependencies": {
         "vite": "8.3.0",
@@ -13,7 +13,7 @@
     },
   },
   "packages": {
-    "@coisasdoalto/bible-references": ["@coisasdoalto/bible-references@0.1.0", "https://npm.pkg.github.com/download/@coisasdoalto/bible-references/0.1.0/97909960116d2cdf92bb3377d4965851ce838fe3", {}, "sha512-NnFB5fX+QHCX1ijX4ieYNSUBxm3ryb4BOA1VancnvQWr0i5/a+Bn+n7QBxTYkXh/A/AuAT8+sZRzUZRLkkphYw=="],
+    "@coisasdoalto/bible-references": ["@coisasdoalto/bible-references@0.2.0", "https://npm.pkg.github.com/download/@coisasdoalto/bible-references/0.2.0/c38e430dfbf86fa8eba80ec05314c4887e21a417", {}, "sha512-jbe26UQwTAOcY8qUB0yz28rmqU1bBAkJzsqzTzUVFYqL6OtjSjPzOhkiEpmOCL5VIV9j3OASsmJz1LH4MVbiAA=="],
 
     "@oxc-project/types": ["@oxc-project/types@0.152.0", "", {}, "sha512-oM/5rLBm2tPkg0iBgkH/FOeR3PCDpY19GTgAZjMFM8h9WI9VW7cLgzp6nwtarYKmovavIQZ+Fe/RKX/8C8O/Rw=="],
 
