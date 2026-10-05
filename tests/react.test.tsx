@@ -4,7 +4,7 @@ import { renderToString } from "react-dom/server";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { BibleReference, Passage, PassageProvider } from "../src/core/types";
-import { BibleReferenceLink, BibleReferences, BibleReferencesProvider } from "../src/react";
+import { BibleReferencesProvider } from "../src/react";
 
 class FakeProvider implements PassageProvider {
   readonly requests: BibleReference[] = [];
@@ -50,25 +50,26 @@ function requireElement<ElementType extends HTMLElement>(selector: string): Elem
   return element;
 }
 
-describe("BibleReferences on the server", () => {
-  it("renders reference links without a provider and without touching the DOM", () => {
+const provider = new FakeProvider();
+
+function linkedTexts(container: ParentNode = document): string[] {
+  return [...container.querySelectorAll(".br-reference")].map((link) => link.textContent ?? "");
+}
+
+describe("BibleReferencesProvider on the server", () => {
+  it("renders its children in a wrapper, without links or a tooltip", () => {
     const html = renderToString(
-      <BibleReferences>
-        Leia Rm 1:1-8 e <code>Sl 23</code>.
-      </BibleReferences>,
+      <BibleReferencesProvider className="bible">Leia Rm 1:1-8.</BibleReferencesProvider>,
     );
 
-    expect(html).toContain('href="https://biblias.app/acf/rm/1/1-8"');
-    expect(html).toContain('data-br-reference="ROM.1.1-8"');
-    expect(html).toContain(">Rm 1:1-8</a>");
-    expect(html).toContain("<code>Sl 23</code>");
+    expect(html).toBe('<div class="bible" style="display:contents">Leia Rm 1:1-8.</div>');
   });
 });
 
-describe("BibleReferences", () => {
+describe("BibleReferencesProvider", () => {
   it("links text at any depth and skips code, links, buttons and ignored elements", async () => {
     const container = await render(
-      <BibleReferences>
+      <BibleReferencesProvider provider={provider}>
         <p>
           Veja Jo 3:16 e <strong>Sl 23</strong>
         </p>
@@ -77,61 +78,166 @@ describe("BibleReferences", () => {
         <button type="button">Rm 8:3</button>
         <p data-bible-references-ignore>Rm 8:4</p>
         {["Gn 1:1", " e Êx 20"]}
-      </BibleReferences>,
+      </BibleReferencesProvider>,
     );
 
-    const linked = [...container.querySelectorAll(".br-reference")].map((link) => link.textContent);
-    expect(linked).toEqual(["Jo 3:16", "Sl 23", "Gn 1:1", "Êx 20"]);
+    expect(linkedTexts(container)).toEqual(["Jo 3:16", "Sl 23", "Gn 1:1", "Êx 20"]);
     expect(container.querySelector("pre")?.textContent).toBe("Rm 8:1");
   });
 
-  it("links the text children of a custom component", async () => {
+  it("links the text of any component below it", async () => {
     function Card({ children }: { children?: ReactNode }) {
       return <section>{children}</section>;
     }
     const container = await render(
-      <BibleReferences>
+      <BibleReferencesProvider provider={provider}>
         <Card>Compare com Jo 1:1-5.</Card>
-      </BibleReferences>,
+      </BibleReferencesProvider>,
     );
 
     expect(container.querySelector("section .br-reference")?.textContent).toBe("Jo 1:1-5");
   });
 
-  it("keeps the DOM correct when the text changes, without remounting", async () => {
-    function Example() {
-      const [text, setText] = useState("Leia Rm 1:1.");
-      return (
-        <>
-          <button type="button" onClick={() => setText("Agora Sl 23 e Jo 3:16.")}>
-            mudar
-          </button>
-          <p>
-            <BibleReferences>{text}</BibleReferences>
-          </p>
-        </>
-      );
-    }
-    const container = await render(<Example />);
-    expect(container.querySelector("p")?.textContent).toBe("Leia Rm 1:1.");
+  it("forwards element props and the tag, keeping display: contents", async () => {
+    const container = await render(
+      <BibleReferencesProvider
+        provider={provider}
+        as="article"
+        id="devotional"
+        className="x"
+        style={{ color: "red" }}
+      >
+        Sl 23
+      </BibleReferencesProvider>,
+    );
 
-    await act(async () => requireElement<HTMLButtonElement>("button").click());
+    const element = requireElement("#devotional");
+    expect(element.tagName).toBe("ARTICLE");
+    expect(element.className).toBe("x");
+    expect(element.style.display).toBe("contents");
+    expect(element.style.color).toBe("red");
+    expect(container.contains(element)).toBe(true);
+  });
 
-    expect(container.querySelector("p")?.textContent).toBe("Agora Sl 23 e Jo 3:16.");
-    expect(
-      [...container.querySelectorAll(".br-reference")].map((link) => link.textContent),
-    ).toEqual(["Sl 23", "Jo 3:16"]);
+  it("only searches the elements that match the selector", async () => {
+    const container = await render(
+      <BibleReferencesProvider provider={provider} selector=".bible">
+        <p>Sl 1</p>
+        <p className="bible">Sl 2</p>
+      </BibleReferencesProvider>,
+    );
+
+    expect(linkedTexts(container)).toEqual(["Sl 2"]);
   });
 });
 
-describe("BibleReferencesProvider", () => {
-  it("opens a preview on hover and removes the tooltip on unmount", async () => {
-    const provider = new FakeProvider();
-    await render(
+describe("BibleReferencesProvider with content that React updates", () => {
+  function Example({ children }: { children: (text: string) => ReactNode }) {
+    const [text, setText] = useState("Leia Rm 1:1 agora");
+    const [show, setShow] = useState(true);
+    return (
       <BibleReferencesProvider provider={provider}>
-        <BibleReferences>Leia Sl 23.</BibleReferences>
+        <button type="button" id="text" onClick={() => setText("Leia Sl 23 agora")} />
+        <button type="button" id="hide" onClick={() => setShow(false)} />
+        {show ? children(text) : null}
+      </BibleReferencesProvider>
+    );
+  }
+
+  async function click(selector: string): Promise<void> {
+    await act(async () => requireElement<HTMLButtonElement>(selector).click());
+    // Let the observer finish its microtask.
+    await act(async () => {});
+  }
+
+  it("relinks a single text child that React replaces", async () => {
+    const container = await render(<Example>{(text) => <p>{text}</p>}</Example>);
+    expect(linkedTexts(container)).toEqual(["Rm 1:1"]);
+
+    await click("#text");
+
+    expect(container.querySelector("p")?.textContent).toBe("Leia Sl 23 agora");
+    expect(linkedTexts(container)).toEqual(["Sl 23"]);
+  });
+
+  it("shows the new text when React updates a text next to other children", async () => {
+    const container = await render(
+      <Example>
+        {(text) => (
+          <p>
+            Leia {text} <b>agora</b>
+          </p>
+        )}
+      </Example>,
+    );
+    expect(container.querySelector("p")?.textContent).toBe("Leia Leia Rm 1:1 agora agora");
+
+    await click("#text");
+
+    expect(container.querySelector("p")?.textContent).toBe("Leia Leia Sl 23 agora agora");
+    expect(linkedTexts(container)).toEqual(["Sl 23"]);
+  });
+
+  it("does not break React when a text child is removed from a parent that stays", async () => {
+    function Toggle() {
+      const [show, setShow] = useState(true);
+      return (
+        <BibleReferencesProvider provider={provider}>
+          <button type="button" id="toggle" onClick={() => setShow(false)} />
+          <p id="p">
+            {show ? "Leia Rm 1:1 agora" : null} <b>fim</b>
+          </p>
+        </BibleReferencesProvider>
+      );
+    }
+    const container = await render(<Toggle />);
+    expect(linkedTexts(container)).toEqual(["Rm 1:1"]);
+
+    await click("#toggle");
+
+    expect(container.querySelector("#p")?.textContent).toBe(" fim");
+    expect(linkedTexts(container)).toEqual([]);
+  });
+
+  it("links content that arrives later, such as an API response", async () => {
+    function Remote() {
+      const [response, setResponse] = useState<string | null>(null);
+      return (
+        <BibleReferencesProvider provider={provider}>
+          <button type="button" id="load" onClick={() => setResponse("Veja Jo 3:16 e Sl 23.")} />
+          {response ? <p>{response}</p> : <p>carregando</p>}
+        </BibleReferencesProvider>
+      );
+    }
+    const container = await render(<Remote />);
+    expect(linkedTexts(container)).toEqual([]);
+
+    await click("#load");
+
+    expect(linkedTexts(container)).toEqual(["Jo 3:16", "Sl 23"]);
+  });
+
+  it("restores the original text when it unmounts", async () => {
+    const container = await render(
+      <BibleReferencesProvider provider={provider}>
+        <p>Leia Rm 1:1.</p>
       </BibleReferencesProvider>,
     );
+    const paragraph = requireElement("p");
+    expect(linkedTexts(container)).toEqual(["Rm 1:1"]);
+
+    await act(async () => root?.unmount());
+    root = undefined;
+
+    expect(paragraph.querySelector(".br-reference")).toBeNull();
+    expect(document.querySelector(".br-tooltip")).toBeNull();
+  });
+});
+
+describe("BibleReferencesProvider tooltip", () => {
+  it("opens a preview on hover and removes the tooltip on unmount", async () => {
+    const fake = new FakeProvider();
+    await render(<BibleReferencesProvider provider={fake}>Leia Sl 23.</BibleReferencesProvider>);
 
     const tooltip = requireElement(".br-tooltip");
     expect(tooltip.hidden).toBe(true);
@@ -146,17 +252,16 @@ describe("BibleReferencesProvider", () => {
     expect(requireElement<HTMLAnchorElement>(".br-tooltip-link").href).toBe(
       "https://biblias.app/acf/23",
     );
-    expect(provider.requests).toHaveLength(1);
+    expect(fake.requests).toHaveLength(1);
 
     await act(async () => root?.unmount());
+    root = undefined;
     expect(document.querySelector(".br-tooltip")).toBeNull();
   });
 
   it("does not navigate when a reference is clicked", async () => {
     await render(
-      <BibleReferencesProvider provider={new FakeProvider()}>
-        <BibleReferences>Leia Sl 23.</BibleReferences>
-      </BibleReferencesProvider>,
+      <BibleReferencesProvider provider={provider}>Leia Sl 23.</BibleReferencesProvider>,
     );
 
     const click = new MouseEvent("click", { bubbles: true, cancelable: true });
@@ -168,48 +273,31 @@ describe("BibleReferencesProvider", () => {
     expect(requireElement(".br-tooltip").hidden).toBe(false);
   });
 
-  it("keeps a single tooltip under StrictMode", async () => {
-    await render(
+  it("keeps a single tooltip and a single set of links under StrictMode", async () => {
+    const container = await render(
       <StrictMode>
-        <BibleReferencesProvider provider={new FakeProvider()}>
-          <BibleReferences>Leia Sl 23.</BibleReferences>
-        </BibleReferencesProvider>
+        <BibleReferencesProvider provider={provider}>Leia Sl 23.</BibleReferencesProvider>
       </StrictMode>,
     );
 
     expect(document.querySelectorAll(".br-tooltip")).toHaveLength(1);
+    expect(linkedTexts(container)).toEqual(["Sl 23"]);
+    expect(container.textContent).toBe("Leia Sl 23.");
   });
 
   it("appends the tooltip to the given container ref", async () => {
-    function Example() {
+    function Modal() {
       const container = useRef<HTMLDivElement>(null);
       return (
         <div ref={container} id="modal">
-          <BibleReferencesProvider provider={new FakeProvider()} container={container}>
-            <BibleReferences>Leia Sl 23.</BibleReferences>
+          <BibleReferencesProvider provider={provider} container={container}>
+            Leia Sl 23.
           </BibleReferencesProvider>
         </div>
       );
     }
-    await render(<Example />);
+    await render(<Modal />);
 
     expect(requireElement(".br-tooltip").parentElement?.id).toBe("modal");
-  });
-
-  it("renders a standalone reference link without a provider", async () => {
-    const reference = {
-      raw: "Jo 3:16",
-      bookId: "JHN",
-      bookName: "João",
-      chapter: 3,
-      verseRanges: [{ start: 16, end: 16 }],
-      start: 0,
-      end: 7,
-    } as const satisfies BibleReference;
-    const container = await render(<BibleReferenceLink reference={reference} />);
-
-    const link = container.querySelector<HTMLAnchorElement>("a");
-    expect(link?.textContent).toBe("Jo 3:16");
-    expect(link?.href).toBe("https://biblias.app/acf/jo/3/16");
   });
 });

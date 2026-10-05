@@ -30,8 +30,8 @@ const SCROLL_CLOSE_GRACE_MS = 150;
 let tooltipSequence = 0;
 
 /**
- * Own the tooltip and its behavior (hover, focus, click, dismissal, loading and caching) for any
- * set of reference links. The DOM and React integrations bind their own links to it.
+ * Own the tooltip and its behavior (hover, focus, click, dismissal, loading and caching) for the
+ * reference links bound to it.
  */
 export function createPreviewController(options: PreviewControllerOptions): PreviewController {
   const { document, provider, getHref, preview } = options;

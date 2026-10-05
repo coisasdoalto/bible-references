@@ -1,15 +1,23 @@
-import { type ReactNode, type RefObject, useEffect, useMemo, useState } from "react";
+import {
+  type ComponentPropsWithoutRef,
+  createElement,
+  type ElementType,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useRef,
+} from "react";
 
-import { createPreviewController, type PreviewController } from "../browser/preview";
-import { type GetHref, resolveGetHref } from "../browser/reference-link";
+import { mountBibleReferences } from "../browser/mount";
+import type { GetHref } from "../browser/reference-link";
 import type { LinkOpenIn, TooltipTheme } from "../browser/tooltip";
 import type { PassageProvider } from "../core/types";
-import { createBibliasAppPassageProvider } from "../providers/biblias.app";
-import { BibleReferencesContext } from "./context";
 
-export interface BibleReferencesProviderProps {
+export interface BibleReferencesProviderProps
+  extends Omit<ComponentPropsWithoutRef<"div">, "children"> {
   /** Source of the passages. Keep it stable (module scope or useMemo). Defaults to biblias.app. */
   readonly provider?: PassageProvider;
+  /** Keep it stable (module scope or useCallback). */
   readonly getHref?: GetHref;
   readonly preview?: boolean;
   readonly theme?: TooltipTheme;
@@ -20,6 +28,10 @@ export interface BibleReferencesProviderProps {
   readonly container?: HTMLElement | RefObject<HTMLElement | null> | null;
   /** Where the tooltip footer link opens. Defaults to "new-tab". */
   readonly openIn?: LinkOpenIn;
+  /** CSS selector of the elements to search inside the provider. Defaults to all of its content. */
+  readonly selector?: string;
+  /** Tag of the wrapper element. Defaults to "div". */
+  readonly as?: ElementType;
   readonly children?: ReactNode;
 }
 
@@ -33,7 +45,13 @@ function resolveContainer(
   return element ?? undefined;
 }
 
-/** Shared tooltip and settings for the reference links below it. Example: <BibleReferencesProvider>. */
+/**
+ * Link the Bible references in everything it renders, including content that changes later.
+ * Example: <BibleReferencesProvider><Article /></BibleReferencesProvider>.
+ *
+ * It wraps its children in an element with `display: contents` and runs `mountBibleReferences`
+ * on it in the browser, so there are no links in server-rendered HTML.
+ */
 export function BibleReferencesProvider({
   provider,
   getHref,
@@ -41,36 +59,38 @@ export function BibleReferencesProvider({
   theme = "auto",
   container,
   openIn = "new-tab",
+  selector,
+  as = "div",
+  style,
   children,
+  ...elementProps
 }: BibleReferencesProviderProps) {
-  const [controller, setController] = useState<PreviewController | null>(null);
-  const resolvedGetHref = useMemo(() => resolveGetHref(provider, getHref), [provider, getHref]);
+  const wrapper = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const element = resolveContainer(container);
-    const next = createPreviewController({
-      document: element?.ownerDocument ?? document,
-      provider: provider ?? createBibliasAppPassageProvider(),
-      getHref: resolvedGetHref,
+    const element = wrapper.current;
+    if (!element) {
+      return;
+    }
+
+    const tooltipContainer = resolveContainer(container);
+    const handle = mountBibleReferences(element, {
+      ...(provider && { provider }),
+      ...(getHref && { getHref }),
+      ...(selector !== undefined && { selector }),
+      ...(tooltipContainer && { container: tooltipContainer }),
       preview,
       theme,
-      container: element,
       openIn,
+      observe: true,
     });
-    setController(next);
 
-    return () => {
-      next.destroy();
-      setController(null);
-    };
-  }, [provider, resolvedGetHref, preview, theme, container, openIn]);
+    return () => handle.destroy();
+  }, [provider, getHref, preview, theme, container, openIn, selector]);
 
-  const value = useMemo(
-    () => ({ controller, getHref: resolvedGetHref }),
-    [controller, resolvedGetHref],
-  );
-
-  return (
-    <BibleReferencesContext.Provider value={value}>{children}</BibleReferencesContext.Provider>
+  return createElement(
+    as,
+    { ...elementProps, ref: wrapper, style: { display: "contents", ...style } },
+    children,
   );
 }
