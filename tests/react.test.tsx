@@ -234,6 +234,55 @@ describe("BibleReferencesProvider with content that React updates", () => {
   });
 });
 
+describe("BibleReferencesProvider options that change", () => {
+  it("links the new wrapper when the tag changes", async () => {
+    function Example() {
+      const [tag, setTag] = useState<"div" | "section">("div");
+      return (
+        <>
+          <button type="button" id="swap" onClick={() => setTag("section")} />
+          <BibleReferencesProvider provider={provider} as={tag}>
+            Leia Sl 23.
+          </BibleReferencesProvider>
+        </>
+      );
+    }
+    const container = await render(<Example />);
+    expect(linkedTexts(container)).toEqual(["Sl 23"]);
+
+    await act(async () => requireElement<HTMLButtonElement>("#swap").click());
+    await act(async () => {});
+
+    expect(container.querySelector("section")?.textContent).toBe("Leia Sl 23.");
+    expect(linkedTexts(container.querySelector("section") ?? container)).toEqual(["Sl 23"]);
+    expect(document.querySelectorAll(".br-tooltip")).toHaveLength(1);
+  });
+
+  it("moves the tooltip when the element behind a container ref mounts later", async () => {
+    function Example() {
+      const modal = useRef<HTMLDivElement>(null);
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" id="open" onClick={() => setOpen(true)} />
+          <BibleReferencesProvider provider={provider} container={modal}>
+            Leia Sl 23.
+          </BibleReferencesProvider>
+          {open ? <div ref={modal} id="modal" /> : null}
+        </>
+      );
+    }
+    await render(<Example />);
+    expect(requireElement(".br-tooltip").parentElement).toBe(document.body);
+
+    await act(async () => requireElement<HTMLButtonElement>("#open").click());
+    await act(async () => {});
+
+    expect(document.querySelectorAll(".br-tooltip")).toHaveLength(1);
+    expect(requireElement(".br-tooltip").parentElement?.id).toBe("modal");
+  });
+});
+
 describe("BibleReferencesProvider tooltip", () => {
   it("opens a preview on hover and removes the tooltip on unmount", async () => {
     const fake = new FakeProvider();

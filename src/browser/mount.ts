@@ -53,6 +53,8 @@ export interface BibleReferencesHandle {
  */
 interface SplitText {
   readonly original: string;
+  /** The text this mount left in the original node. */
+  readonly prefix: string;
   readonly nodes: Node[];
   readonly unbinds: Array<() => void>;
 }
@@ -186,10 +188,11 @@ export function mountBibleReferences(
       owned.add(created);
     }
     owned.add(node);
-    splits.set(node, { original: text, nodes, unbinds });
+    const prefix = text.slice(0, first.start);
+    splits.set(node, { original: text, prefix, nodes, unbinds });
 
     node.after(...nodes);
-    node.data = text.slice(0, first.start);
+    node.data = prefix;
   }
 
   /** Remove what was generated for a node. `restore` puts its original text back. */
@@ -240,32 +243,57 @@ export function mountBibleReferences(
     }
   }
 
-  function handleRecords(records: readonly MutationRecord[]): void {
-    const rescan = new Set<Node>();
-    let removedAny = false;
-
-    for (const record of records) {
-      if (record.type === "characterData") {
-        // The host rewrote a text node. If it was split, its text is now the whole new text.
-        const target = record.target as Text;
-        unsplit(target, false);
-        rescan.add(target);
-        continue;
+  /** Whether the generated nodes still follow their original node, in order. */
+  function followsOriginal(node: Text, split: SplitText): boolean {
+    let next = node.nextSibling;
+    for (const generated of split.nodes) {
+      if (generated !== next) {
+        return false;
       }
+      next = next.nextSibling;
+    }
+    return true;
+  }
 
-      removedAny ||= record.removedNodes.length > 0;
-      for (const added of record.addedNodes) {
-        rescan.add(added);
+  /**
+   * Undo the splits the host broke, whether or not anything was observed: the node left the
+   * root, was rewritten, or was moved away from its generated nodes. Nodes that need another
+   * look are added to `rescan`.
+   */
+  function reconcile(records: readonly MutationRecord[], rescan: Set<Node>): void {
+    for (const record of records) {
+      if (record.type === "characterData" && splits.has(record.target as Text)) {
+        // The host rewrote a split node: its text is now the whole new text.
+        unsplit(record.target as Text, false);
+        rescan.add(record.target);
       }
     }
 
-    if (removedAny) {
-      // Content that left the root takes its split nodes with it; undo them so a node that comes
-      // back is linked again and no link stays bound.
-      for (const node of [...splits.keys()]) {
-        if (!rootNode.contains(node)) {
-          unsplit(node, true);
-        }
+    for (const [node, split] of [...splits]) {
+      if (!rootNode.contains(node)) {
+        // Back to its original text, so it is linked again if it returns.
+        unsplit(node, true);
+      } else if (node.data !== split.prefix) {
+        unsplit(node, false);
+        rescan.add(node);
+      } else if (!followsOriginal(node, split)) {
+        // Moved without the generated nodes: its text is the prefix, so restore the whole text.
+        unsplit(node, true);
+        rescan.add(node);
+      }
+    }
+  }
+
+  function handleRecords(records: readonly MutationRecord[]): void {
+    const rescan = new Set<Node>();
+    reconcile(records, rescan);
+
+    for (const record of records) {
+      for (const added of record.addedNodes) {
+        rescan.add(added);
+      }
+      if (record.type === "characterData") {
+        rescan.add(record.target);
       }
     }
 
@@ -283,9 +311,8 @@ export function mountBibleReferences(
       return;
     }
 
-    if (observer) {
-      handleRecords(observer.takeRecords());
-    }
+    // Settle what the host did since the last scan; the full scan below covers the rest.
+    reconcile(observer?.takeRecords() ?? [], new Set());
     for (const region of regionsWithin(rootNode)) {
       scan(region);
     }
@@ -308,6 +335,8 @@ export function mountBibleReferences(
     refresh,
     destroy() {
       destroyed = true;
+      // Keep the host's pending edits: only the splits that are still intact get their text back.
+      reconcile(observer?.takeRecords() ?? [], new Set());
       observer?.disconnect();
       for (const node of [...splits.keys()]) {
         unsplit(node, true);

@@ -715,6 +715,62 @@ describe("mountBibleReferences observe", () => {
 });
 
 describe("mountBibleReferences text ownership", () => {
+  it("settles removed content on refresh without observe", () => {
+    document.body.innerHTML = `<div id="host"><p id="p">Sl 117</p></div>`;
+    const host = requireFixtureElement("#host");
+    const handle = mountBibleReferences(host, { provider: new FakeChapterProvider() });
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+    requireFixtureElement(".br-reference").dispatchEvent(new MouseEvent("mouseenter"));
+    expect(tooltip.hidden).toBe(false);
+
+    host.innerHTML = "<p>Rm 1:1</p>";
+    handle.refresh();
+
+    expect(tooltip.hidden).toBe(true);
+    expect(referenceTexts()).toEqual(["Rm 1:1"]);
+    handle.destroy();
+  });
+
+  it("relinks a rewritten original node on refresh without observe", () => {
+    document.body.innerHTML = `<p id="p">Leia Rm 1:1 agora</p>`;
+    const text = requireFixtureElement("#p").firstChild as Text;
+    const handle = mountBibleReferences(document.body, { preview: false });
+
+    text.nodeValue = "Leia Sl 23 agora";
+    handle.refresh();
+
+    expect(requireFixtureElement("#p").textContent).toBe("Leia Sl 23 agora");
+    expect(referenceTexts()).toEqual(["Sl 23"]);
+    handle.destroy();
+  });
+
+  it("relinks an original node that moves inside the root without its generated nodes", async () => {
+    document.body.innerHTML = `<p id="a">Leia Rm 1:1 agora</p><p id="b"></p>`;
+    const text = requireFixtureElement("#a").firstChild as Text;
+    const handle = mountBibleReferences(document.body, { preview: false, observe: true });
+
+    requireFixtureElement("#b").append(text);
+    await settle();
+
+    expect(requireFixtureElement("#a").textContent).toBe("");
+    expect(requireFixtureElement("#b").textContent).toBe("Leia Rm 1:1 agora");
+    expect(referenceTexts()).toEqual(["Rm 1:1"]);
+    expect(requireFixtureElement("#b").querySelector(".br-reference")).not.toBeNull();
+    handle.destroy();
+  });
+
+  it("keeps an edit made right before destroy", () => {
+    document.body.innerHTML = `<p id="p">Leia Rm 1:1 agora</p>`;
+    const text = requireFixtureElement("#p").firstChild as Text;
+    const handle = mountBibleReferences(document.body, { preview: false, observe: true });
+
+    text.nodeValue = "Texto novo";
+    handle.destroy();
+
+    expect(requireFixtureElement("#p").textContent).toBe("Texto novo");
+    expect(referenceTexts()).toEqual([]);
+  });
+
   it("keeps the original text node and restores it on destroy", () => {
     document.body.innerHTML = `<p id="p">Leia Rm 1:1 e Sl 23.</p>`;
     const paragraph = requireFixtureElement("#p");

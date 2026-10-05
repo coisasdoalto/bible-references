@@ -5,7 +5,9 @@ import {
   type ReactNode,
   type RefObject,
   useEffect,
+  useReducer,
   useRef,
+  useState,
 } from "react";
 
 import { mountBibleReferences } from "../browser/mount";
@@ -65,16 +67,20 @@ export function BibleReferencesProvider({
   children,
   ...elementProps
 }: BibleReferencesProviderProps) {
-  const wrapper = useRef<HTMLElement>(null);
+  // The wrapper element is state, not a ref object, so a new element (a different `as`) remounts.
+  const [wrapper, setWrapper] = useState<HTMLElement | null>(null);
+  const mountedContainer = useRef<HTMLElement | undefined>(undefined);
+  const [containerVersion, containerChanged] = useReducer((version: number) => version + 1, 0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: containerVersion remounts when a container ref points to another element.
   useEffect(() => {
-    const element = wrapper.current;
-    if (!element) {
+    if (!wrapper) {
       return;
     }
 
     const tooltipContainer = resolveContainer(container);
-    const handle = mountBibleReferences(element, {
+    mountedContainer.current = tooltipContainer;
+    const handle = mountBibleReferences(wrapper, {
       ...(provider && { provider }),
       ...(getHref && { getHref }),
       ...(selector !== undefined && { selector }),
@@ -86,11 +92,19 @@ export function BibleReferencesProvider({
     });
 
     return () => handle.destroy();
-  }, [provider, getHref, preview, theme, container, openIn, selector]);
+  }, [wrapper, provider, getHref, preview, theme, container, openIn, selector, containerVersion]);
+
+  // A ref keeps its identity when its element changes (a modal that mounts later), so compare the
+  // element after every render and remount the tooltip when it is not the one in use.
+  useEffect(() => {
+    if (resolveContainer(container) !== mountedContainer.current) {
+      containerChanged();
+    }
+  });
 
   return createElement(
     as,
-    { ...elementProps, ref: wrapper, style: { display: "contents", ...style } },
+    { ...elementProps, ref: setWrapper, style: { display: "contents", ...style } },
     children,
   );
 }
