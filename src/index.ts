@@ -26,4 +26,4 @@ export {
   buildAcfPassageUrl,
   createAcfPassageProvider,
   DEFAULT_ACF_API_BASE_URL,
-} from "./providers/acf";
+} from "./providers/biblias.app";

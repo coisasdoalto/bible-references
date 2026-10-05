@@ -2,7 +2,7 @@ import clsx from "clsx/lite";
 
 import { bibleReferenceKey, formatBibleReference, parseBibleReferences } from "../core/parser";
 import type { BibleReference, Passage, PassageProvider } from "../core/types";
-import { buildAcfPassageUrl, createAcfPassageProvider } from "../providers/acf";
+import { buildAcfPassageUrl, createAcfPassageProvider } from "../providers/biblias.app";
 
 const SHOW_TEXT = 4;
 const FILTER_ACCEPT = 1;

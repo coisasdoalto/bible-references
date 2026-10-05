@@ -5,7 +5,7 @@ import {
   buildAcfPassageUrl,
   createAcfPassageProvider,
   decodeAcfVerses,
-} from "../src/providers/acf";
+} from "../src/providers/biblias.app";
 
 const reference: BibleReference = {
   raw: "Rm 1:1-8",
