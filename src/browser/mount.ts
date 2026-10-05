@@ -107,6 +107,8 @@ export function mountBibleReferences(
   // Nodes this mount created or split: never searched again.
   const owned = new WeakSet<Node>();
   let observer: MutationObserver | undefined;
+  // Host rewrites of split nodes that arrived while only `refresh()` is looking (no `observe`).
+  const rewritten: MutationRecord[] = [];
   let destroyed = false;
 
   function findSelectorMatch(element: Element): Element | null {
@@ -194,6 +196,10 @@ export function mountBibleReferences(
 
     node.after(...nodes);
     node.data = prefix;
+    if (!options.observe) {
+      // Without observe, still notice the host writing to this node, even the same text.
+      observer?.observe(node, { characterData: true });
+    }
   }
 
   /** Remove what was generated for a node. `restore` puts its original text back. */
@@ -314,13 +320,17 @@ export function mountBibleReferences(
     }
   }
 
+  function takePendingRecords(): MutationRecord[] {
+    return [...rewritten.splice(0), ...(observer?.takeRecords() ?? [])];
+  }
+
   function refresh(): void {
     if (destroyed) {
       return;
     }
 
     // Settle what the host did since the last scan; the full scan below covers the rest.
-    reconcile(observer?.takeRecords() ?? [], new Set(), true);
+    reconcile(takePendingRecords(), new Set(), true);
     for (const region of regionsWithin(rootNode)) {
       scan(region);
     }
@@ -328,15 +338,23 @@ export function mountBibleReferences(
     observer?.takeRecords();
   }
 
-  refresh();
-
   const ObserverConstructor = document.defaultView?.MutationObserver;
-  if (options.observe && ObserverConstructor) {
+  if (ObserverConstructor) {
     observer = new ObserverConstructor((records) => {
-      handleRecords(records);
+      if (options.observe) {
+        handleRecords(records);
+      } else {
+        rewritten.push(...records.filter((record) => record.type === "characterData"));
+      }
+      // Drop the records of this mount's own changes.
       observer?.takeRecords();
     });
-    observer.observe(rootNode, { childList: true, subtree: true, characterData: true });
+  }
+
+  refresh();
+
+  if (options.observe) {
+    observer?.observe(rootNode, { childList: true, subtree: true, characterData: true });
   }
 
   return {
@@ -344,7 +362,7 @@ export function mountBibleReferences(
     destroy() {
       destroyed = true;
       // Keep the host's pending edits: only the splits that are still intact get their text back.
-      reconcile(observer?.takeRecords() ?? [], new Set());
+      reconcile(takePendingRecords(), new Set());
       observer?.disconnect();
       for (const node of [...splits.keys()]) {
         unsplit(node, true);

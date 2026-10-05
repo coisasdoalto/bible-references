@@ -776,6 +776,35 @@ describe("mountBibleReferences text ownership", () => {
     handle.destroy();
   });
 
+  it("notices the host writing the same text to a split node on refresh without observe", async () => {
+    document.body.innerHTML = `<p id="p">Rm 1:1</p>`;
+    const text = requireFixtureElement("#p").firstChild as Text;
+    const handle = mountBibleReferences(document.body, { preview: false });
+    expect(referenceTexts()).toEqual(["Rm 1:1"]);
+
+    text.data = "";
+    handle.refresh();
+
+    expect(requireFixtureElement("#p").textContent).toBe("");
+    expect(referenceTexts()).toEqual([]);
+    handle.destroy();
+  });
+
+  it("keeps links across refreshes that follow its own changes", async () => {
+    document.body.innerHTML = `<p id="p">Leia Rm 1:1 agora</p>`;
+    const handle = mountBibleReferences(document.body, { preview: false });
+
+    await settle();
+    handle.refresh();
+    await settle();
+    handle.refresh();
+
+    expect(requireFixtureElement("#p").textContent).toBe("Leia Rm 1:1 agora");
+    expect(referenceTexts()).toEqual(["Rm 1:1"]);
+    handle.destroy();
+    expect(requireFixtureElement("#p").textContent).toBe("Leia Rm 1:1 agora");
+  });
+
   it("relinks an original node that moves inside the root without its generated nodes", async () => {
     document.body.innerHTML = `<p id="a">Leia Rm 1:1 agora</p><p id="b"></p>`;
     const text = requireFixtureElement("#a").firstChild as Text;

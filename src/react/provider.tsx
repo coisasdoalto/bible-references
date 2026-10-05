@@ -1,7 +1,6 @@
 import {
   type ComponentPropsWithoutRef,
   createElement,
-  type ElementType,
   type ReactNode,
   type RefObject,
   useEffect,
@@ -35,7 +34,7 @@ export interface BibleReferencesProviderProps
   /** CSS selector of the elements to search inside the provider. Defaults to all of its content. */
   readonly selector?: string;
   /** Tag of the wrapper element. Defaults to "div". */
-  readonly as?: ElementType;
+  readonly as?: keyof HTMLElementTagNameMap;
   readonly children?: ReactNode;
 }
 
