@@ -21,6 +21,8 @@ export interface TooltipView {
   showLoading(reference: BibleReference): void;
   showPassage(passage: Passage, reference: BibleReference): void;
   showError(reference: BibleReference, onRetry: () => void): void;
+  open(): void;
+  close(): void;
   place(anchor: HTMLElement): void;
   setTheme(theme: ResolvedTooltipTheme): void;
 }
@@ -90,6 +92,12 @@ export function createTooltipView(document: Document, options: TooltipViewOption
   root.dataset.brTheme = "light";
   root.dataset.brPlacement = "bottom";
   root.hidden = true;
+  // Manual popovers render in the top layer, above modal dialogs and any z-index.
+  const usesPopover = typeof root.showPopover === "function";
+  if (usesPopover) {
+    root.setAttribute("popover", "manual");
+  }
+  let popoverOpen = false;
 
   const card = createElement(document, "div", cardClassName);
   const header = createElement(document, "div", headerClassName);
@@ -200,6 +208,22 @@ export function createTooltipView(document: Document, options: TooltipViewOption
       );
       body.replaceChildren(message);
       setFooter(reference, { verb: "Abrir em", fallback: "Abrir passagem" }, translationName);
+    },
+
+    open() {
+      root.hidden = false;
+      if (usesPopover && !popoverOpen) {
+        popoverOpen = true;
+        root.showPopover();
+      }
+    },
+
+    close() {
+      if (usesPopover && popoverOpen) {
+        popoverOpen = false;
+        root.hidePopover();
+      }
+      root.hidden = true;
     },
 
     setTheme(theme) {

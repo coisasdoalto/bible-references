@@ -29,18 +29,25 @@ function requireFixtureElement<ElementType extends HTMLElement>(selector: string
 
 afterEach(() => vi.useRealTimers());
 
+/** Simulate keyboard navigation: a preview opens on focus only after a key press. */
+function pressTab(): void {
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" }));
+}
+
 describe("mountBibleReferences", () => {
   it("loads all chapter verses and preserves content when reopened from cache", async () => {
     document.body.innerHTML = "<p>Sl 119</p>";
     const provider = new FakeChapterProvider();
     const handle = mountBibleReferences(document.body, { provider });
     const link = requireFixtureElement<HTMLAnchorElement>(".br-reference");
+    pressTab();
     link.focus();
     await vi.waitFor(() =>
       expect(document.querySelector(".br-tooltip")?.textContent).toContain("12 Versículo 12."),
     );
     expect(link.href).toBe("https://biblias.app/acf/119");
     expect(provider.requests[0]).toMatchObject({ verseRanges: [] });
+    pressTab();
     link.dispatchEvent(new FocusEvent("focus"));
     expect(provider.requests).toHaveLength(1);
     expect(document.querySelector(".br-tooltip")?.textContent).toContain("Salmos 119");
@@ -71,6 +78,7 @@ describe("mountBibleReferences", () => {
     const link = requireFixtureElement<HTMLAnchorElement>(".br-reference");
     const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
     const body = requireFixtureElement<HTMLElement>(".br-tooltip-body");
+    pressTab();
     link.focus();
     link.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
     await vi.advanceTimersByTimeAsync(200);
@@ -116,6 +124,7 @@ describe("mountBibleReferences", () => {
     const handle = mountBibleReferences(document.body, { provider: { getPassage } });
     const link = requireFixtureElement<HTMLAnchorElement>(".br-reference");
 
+    pressTab();
     link.dispatchEvent(new FocusEvent("focus"));
     await vi.waitFor(() => expect(getPassage).toHaveBeenCalledOnce());
 
@@ -132,6 +141,7 @@ describe("mountBibleReferences", () => {
       ),
     );
     expect(document.querySelector(".br-tooltip-body")?.textContent).toContain("29 Afasta");
+    pressTab();
     link.dispatchEvent(new FocusEvent("focus"));
     expect(getPassage).toHaveBeenCalledOnce();
     handle.destroy();
@@ -141,6 +151,7 @@ describe("mountBibleReferences", () => {
     document.body.innerHTML = "<p>Sl 23</p>";
     const handle = mountBibleReferences(document.body, { provider: new FakeChapterProvider() });
     const link = requireFixtureElement<HTMLAnchorElement>(".br-reference");
+    pressTab();
     link.dispatchEvent(new FocusEvent("focus"));
     expect(document.querySelector(".br-tooltip")?.getAttribute("data-br-state")).toBe("loading");
     await vi.waitFor(() =>
@@ -167,6 +178,7 @@ describe("mountBibleReferences", () => {
       }),
     };
     const handle = mountBibleReferences(document.body, { provider });
+    pressTab();
     requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
       new FocusEvent("focus"),
     );
@@ -188,6 +200,7 @@ describe("mountBibleReferences", () => {
       },
     };
     const handle = mountBibleReferences(document.body, { provider });
+    pressTab();
     requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
       new FocusEvent("focus"),
     );
@@ -384,5 +397,53 @@ describe("mountBibleReferences", () => {
     expect(document.querySelector(".br-tooltip-title")?.textContent).toBe("Salmos 23");
     expect(document.querySelectorAll(".br-reference")).toHaveLength(1);
     handle.destroy();
+  });
+
+  it("does not open on programmatic focus, only after keyboard navigation", () => {
+    document.body.innerHTML = "<button id='before'>Antes</button><p>Sl 1</p>";
+    const handle = mountBibleReferences(document.body, { provider: new FakeChapterProvider() });
+    const link = requireFixtureElement<HTMLAnchorElement>(".br-reference");
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+
+    // A dialog or an autofocus moving focus to the link is not a request for a preview.
+    link.focus();
+    expect(tooltip.hidden).toBe(true);
+
+    link.blur();
+    document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    link.focus();
+    expect(tooltip.hidden).toBe(true);
+
+    link.blur();
+    pressTab();
+    link.focus();
+    expect(tooltip.hidden).toBe(false);
+    handle.destroy();
+  });
+
+  it("shows the tooltip in the top layer when the Popover API is available", () => {
+    const showPopover = vi.fn();
+    const hidePopover = vi.fn();
+    Object.assign(HTMLElement.prototype, { showPopover, hidePopover });
+    try {
+      document.body.innerHTML = "<p>Sl 1</p>";
+      const handle = mountBibleReferences(document.body, { provider: new FakeChapterProvider() });
+      const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+      expect(tooltip.getAttribute("popover")).toBe("manual");
+
+      requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+      expect(showPopover).toHaveBeenCalledOnce();
+      expect(tooltip.hidden).toBe(false);
+
+      document.body.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+      expect(hidePopover).toHaveBeenCalledOnce();
+      expect(tooltip.hidden).toBe(true);
+      handle.destroy();
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, "showPopover");
+      Reflect.deleteProperty(HTMLElement.prototype, "hidePopover");
+    }
   });
 });

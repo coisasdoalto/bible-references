@@ -27,4 +27,4 @@ Para testar no celular, use `bun run dev -- --host`.
 
 - **Texto estático:** `LinkedText` monta a biblioteca em um elemento com `useEffect` e a destrói na limpeza. O `StrictMode` (que monta, desmonta e monta de novo) está ligado para garantir que isso é idempotente.
 - **Texto que muda:** a biblioteca troca nós de texto por links, então o React não pode atualizar o texto de um elemento já montado. Use `key={text}` para que o React crie um elemento novo quando o texto muda.
-- **Dentro de um modal:** num `<dialog>` modal, o tooltip anexado ao `body` fica escondido e sem ponteiro. A opção `container` anexa o tooltip dentro do modal; a caixa de seleção alterna os dois casos.
+- **Dentro de um modal:** num `<dialog>` modal, o tooltip anexado ao `body` aparece acima do modal (a biblioteca usa a camada superior do navegador, via Popover API), mas o navegador bloqueia o ponteiro nele. A opção `container` anexa o tooltip dentro do modal e resolve isso; a caixa de seleção alterna os dois casos.

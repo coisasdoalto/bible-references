@@ -112,6 +112,7 @@ export function mountBibleReferences(
   let tooltipHovered = false;
   let tooltipFocused = false;
   let openedAt = 0;
+  let keyboardModality = false;
   let hideTimeout: ReturnType<typeof setTimeout> | undefined;
 
   function closeTooltip(): void {
@@ -130,7 +131,7 @@ export function mountBibleReferences(
     tooltipHovered = false;
     tooltipFocused = false;
     activeLink = null;
-    tooltip.hidden = true;
+    view.close();
   }
 
   function hideTooltip(link: HTMLAnchorElement): void {
@@ -148,7 +149,7 @@ export function mountBibleReferences(
 
     link.removeAttribute("aria-describedby");
     activeLink = null;
-    tooltip.hidden = true;
+    view.close();
   }
 
   function scheduleTooltipHide(link: HTMLAnchorElement): void {
@@ -165,7 +166,7 @@ export function mountBibleReferences(
     openedAt = performance.now();
     clearTimeout(hideTimeout);
     link.setAttribute("aria-describedby", tooltip.id);
-    tooltip.hidden = false;
+    view.open();
     view.showLoading(reference);
     view.place(link);
 
@@ -246,7 +247,11 @@ export function mountBibleReferences(
       "focus",
       () => {
         state.focused = true;
-        void showTooltip(link, reference);
+        // Programmatic focus (a dialog focusing its first control, an autofocus) is not a request
+        // for a preview; only keyboard navigation opens it on focus.
+        if (keyboardModality) {
+          void showTooltip(link, reference);
+        }
       },
       { signal: eventController.signal },
     );
@@ -294,6 +299,11 @@ export function mountBibleReferences(
       },
       { ...listenerOptions, capture: true, passive: true },
     );
+
+    // Track whether the last input came from the keyboard, to tell Tab from programmatic focus.
+    const captureOptions = { ...listenerOptions, capture: true, passive: true };
+    document.addEventListener("keydown", () => (keyboardModality = true), captureOptions);
+    document.addEventListener("pointerdown", () => (keyboardModality = false), captureOptions);
 
     // Taps outside do not reliably emit mouseleave/blur on touch devices.
     document.addEventListener(

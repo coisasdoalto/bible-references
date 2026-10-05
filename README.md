@@ -91,7 +91,7 @@ O preview não tem limite de versículos: o tooltip mostra toda a seleção, com
 
 A referência não navega ao ser clicada: clique ou toque abrem o tooltip (no desktop, hover e foco também abrem). O tooltip fecha ao rolar a página, ao tocar fora dele ou com `Escape`; rolar dentro do tooltip não o fecha.
 
-O tooltip permanece aberto enquanto o link ou o tooltip recebe hover ou foco.
+O tooltip abre por foco apenas na navegação por teclado; um foco programático (por exemplo, o foco inicial de um `<dialog>`) não o abre. Ele permanece aberto enquanto o link ou o tooltip recebe hover ou foco.
 Com o link focado, pressione `↓` para focar o tooltip e usar as teclas de rolagem;
 `Escape` fecha o tooltip e devolve o foco ao link. A largura e a altura máximas podem ser
 personalizadas com `--br-tooltip-width` e `--br-tooltip-max-height` (padrão: `24rem`), sempre limitadas à tela.
@@ -106,7 +106,7 @@ Um `PassageProvider` implementa `getPassage(reference, signal?)` e pode expor `t
 
 ### Container do tooltip
 
-Por padrão, o tooltip é anexado ao `body`. Em páginas com modais ou popovers (por exemplo, Radix ou vaul), passe `container` com um elemento dentro deles: assim, o hover e os toques no tooltip contam como interações dentro do modal, que não os bloqueia. A posição é corrigida automaticamente quando um ancestral usa `transform`.
+Por padrão, o tooltip é anexado ao `body` e exibido na camada superior do navegador (Popover API, quando disponível), então aparece acima de modais e de qualquer `z-index`. Mesmo assim, modais bloqueiam o ponteiro fora deles: em páginas com modais ou popovers (por exemplo, Radix, vaul ou `<dialog>`), passe `container` com um elemento dentro deles. Assim, o hover e os toques no tooltip contam como interações dentro do modal, que não os bloqueia. A posição é corrigida automaticamente quando um ancestral usa `transform`.
 
 ```ts
 mountBibleReferences(noteElement, { container: noteElement });

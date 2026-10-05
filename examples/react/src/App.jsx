@@ -52,8 +52,9 @@ export function App() {
           </button>
         </dialog>
         <p>
-          Sem <code>container</code>, o tooltip fica fora do modal: o navegador o esconde atrás do
-          modal e bloqueia o ponteiro nele.
+          O tooltip aparece acima do modal nos dois casos. Sem <code>container</code>, ele fica fora
+          do modal, e o navegador bloqueia o ponteiro nele: não dá para clicar em "Ler em
+          biblias.app".
         </p>
       </section>
     </main>
