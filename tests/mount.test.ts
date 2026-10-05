@@ -285,4 +285,16 @@ describe("mountBibleReferences", () => {
     expect(footerLink()).toEqual({ target: "_blank", rel: "noopener noreferrer" });
     expect(footerLink("current-tab")).toEqual({ target: null, rel: "" });
   });
+
+  it("appends the tooltip to the given container", () => {
+    document.body.innerHTML = "<div id='modal'><p>Sl 1</p></div>";
+    const container = requireFixtureElement<HTMLElement>("#modal");
+    const handle = mountBibleReferences(container, {
+      provider: new FakeChapterProvider(),
+      container,
+    });
+    expect(requireFixtureElement<HTMLElement>(".br-tooltip").parentElement).toBe(container);
+    handle.destroy();
+    expect(document.querySelector(".br-tooltip")).toBeNull();
+  });
 });

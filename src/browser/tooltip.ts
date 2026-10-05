@@ -230,6 +230,14 @@ export function createTooltipView(document: Document, options: TooltipViewOption
       root.dataset.brPlacement = placement;
       root.style.top = `${top}px`;
       root.style.left = `${left}px`;
+
+      // A transformed or filtered ancestor becomes the containing block of fixed elements, so
+      // the tooltip can land away from the viewport coordinates computed above. Correct it.
+      const placed = root.getBoundingClientRect();
+      if (placed.width > 0 || placed.height > 0) {
+        root.style.top = `${top + (top - placed.top)}px`;
+        root.style.left = `${left + (left - placed.left)}px`;
+      }
       root.style.setProperty(
         "--br-arrow-x",
         `${clamp(anchorCenter - left, ARROW_INSET, width - ARROW_INSET)}px`,

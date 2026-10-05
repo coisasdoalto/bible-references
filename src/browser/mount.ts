@@ -23,6 +23,11 @@ export interface MountBibleReferencesOptions {
   readonly getHref?: (reference: BibleReference) => string;
   readonly preview?: boolean;
   readonly theme?: TooltipTheme;
+  /**
+   * Element that receives the tooltip. Defaults to the document body. Pass an element inside a
+   * modal or popover so pointer events and hover inside the tooltip count as inside it.
+   */
+  readonly container?: HTMLElement;
   /** Where the tooltip footer link opens. Defaults to "new-tab". */
   readonly openIn?: LinkOpenIn;
 }
@@ -87,7 +92,7 @@ export function mountBibleReferences(
     getFallbackHref: getHref,
   });
   const tooltip = view.element;
-  (document.body ?? document.documentElement).append(tooltip);
+  (options.container ?? document.body ?? document.documentElement).append(tooltip);
 
   const theme = options.theme ?? "auto";
   const colorScheme =
