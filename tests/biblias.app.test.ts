@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { BibleReference } from "../src/core/types";
 import {
-  buildAcfPassageUrl,
-  createAcfPassageProvider,
-  decodeAcfVerses,
+  buildBibliasAppPassageUrl,
+  createBibliasAppPassageProvider,
+  decodeBibliasAppVerses,
 } from "../src/providers/biblias.app";
 
 const reference: BibleReference = {
@@ -44,7 +44,7 @@ class FakeChapterFetch {
   };
 }
 
-describe("ACF passage provider", () => {
+describe("biblias.app passage provider", () => {
   it("fetches an entire chapter without a verse URL suffix", async () => {
     const chapter: BibleReference = {
       ...reference,
@@ -56,26 +56,30 @@ describe("ACF passage provider", () => {
       verseEnd: null,
     };
     const fake = new FakeChapterFetch();
-    const passage = await createAcfPassageProvider({ fetch: fake.fetch }).getPassage(chapter);
+    const passage = await createBibliasAppPassageProvider({ fetch: fake.fetch }).getPassage(
+      chapter,
+    );
     expect(fake.requests).toEqual(["https://biblias.app/api/v1/bible/acf/passages/sl/117"]);
     expect(passage.verses.map((verse) => verse.number)).toEqual([1, 2]);
-    expect(decodeAcfVerses({ data: ["Primeiro", "Segundo"] }, chapter)).toEqual([
+    expect(decodeBibliasAppVerses({ data: ["Primeiro", "Segundo"] }, chapter)).toEqual([
       { number: 1, text: "Primeiro" },
       { number: 2, text: "Segundo" },
     ]);
   });
   it("builds the range URL used by the MVP API", () => {
-    expect(buildAcfPassageUrl(reference)).toBe(
+    expect(buildBibliasAppPassageUrl(reference)).toBe(
       "https://biblias.app/api/v1/bible/acf/passages/rm/1/1-8",
     );
   });
 
   it("allows book slug overrides without changing the core model", () => {
-    expect(buildAcfPassageUrl(reference, { bookSlugs: { ROM: "rom" } })).toContain("/rom/1/1-8");
+    expect(buildBibliasAppPassageUrl(reference, { bookSlugs: { ROM: "rom" } })).toContain(
+      "/rom/1/1-8",
+    );
   });
 
-  it("decodes the current ACF API response shape", () => {
-    expect(decodeAcfVerses(apiPayload, { ...reference, verseEnd: 2 })).toEqual([
+  it("decodes the current biblias.app API response shape", () => {
+    expect(decodeBibliasAppVerses(apiPayload, { ...reference, verseEnd: 2 })).toEqual([
       { number: 1, text: "Primeiro verso" },
       { number: 2, text: "Segundo verso" },
     ]);
@@ -90,7 +94,7 @@ describe("ACF passage provider", () => {
         }),
     );
 
-    const provider = createAcfPassageProvider({
+    const provider = createBibliasAppPassageProvider({
       fetch: fetcher as typeof fetch,
     });
     const passage = await provider.getPassage({ ...reference, verseEnd: 2 });

@@ -16,7 +16,7 @@ O primeiro MVP já está implementado. Ele inclui:
 - tooltip por hover e foco;
 - preview de intervalos limitado a 8 versículos por padrão;
 - capítulos inteiros em tooltips com rolagem por mouse ou teclado;
-- provider HTTP para a API ACF;
+- provider HTTP para a API do biblias.app (tradução ACF);
 - testes de parser, provider e DOM.
 
 A API usada provisoriamente para os previews é:
@@ -96,7 +96,7 @@ personalizada com `--br-tooltip-max-height` (padrão: `24rem`), sempre limitada 
 
 A camada DOM ignora referências dentro de `script`, `style`, `code`, `pre`, controles de formulário, links existentes, botões, conteúdo editável e elementos marcados com `data-bible-references-ignore`.
 
-Quando `getHref` não é informado, o link usa provisoriamente o mesmo endpoint ACF do preview.
+Quando `getHref` não é informado, o link usa provisoriamente o mesmo endpoint do biblias.app usado no preview.
 
 ## Ferramentas
 

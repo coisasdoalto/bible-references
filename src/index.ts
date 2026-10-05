@@ -22,8 +22,8 @@ export type {
   PassageVerse,
 } from "./core/types";
 export {
-  type AcfPassageProviderOptions,
-  buildAcfPassageUrl,
-  createAcfPassageProvider,
-  DEFAULT_ACF_API_BASE_URL,
+  type BibliasAppPassageProviderOptions,
+  buildBibliasAppPassageUrl,
+  createBibliasAppPassageProvider,
+  DEFAULT_BIBLIAS_APP_API_BASE_URL,
 } from "./providers/biblias.app";

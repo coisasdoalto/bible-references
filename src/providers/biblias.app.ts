@@ -1,22 +1,22 @@
 import { type BibleBookId, getBibleBookById } from "../core/books";
 import type { BibleReference, PassageProvider, PassageVerse } from "../core/types";
 
-export const DEFAULT_ACF_API_BASE_URL = "https://biblias.app/api/v1/bible/acf/passages";
+export const DEFAULT_BIBLIAS_APP_API_BASE_URL = "https://biblias.app/api/v1/bible/acf/passages";
 
-export interface AcfPassageProviderOptions {
+export interface BibliasAppPassageProviderOptions {
   readonly baseUrl?: string;
   readonly bookSlugs?: Partial<Record<BibleBookId, string>>;
   readonly fetch?: typeof globalThis.fetch;
 }
 
-/** Build an ACF passage or chapter URL. Example: buildAcfPassageUrl(reference). */
-export function buildAcfPassageUrl(
+/** Build a biblias.app passage or chapter URL. Example: buildBibliasAppPassageUrl(reference). */
+export function buildBibliasAppPassageUrl(
   reference: BibleReference,
-  options: Pick<AcfPassageProviderOptions, "baseUrl" | "bookSlugs"> = {},
+  options: Pick<BibliasAppPassageProviderOptions, "baseUrl" | "bookSlugs"> = {},
 ): string {
   const book = getBibleBookById(reference.bookId);
   const slug = options.bookSlugs?.[reference.bookId] ?? book.apiSlug;
-  const baseUrl = (options.baseUrl ?? DEFAULT_ACF_API_BASE_URL).replace(/\/$/, "");
+  const baseUrl = (options.baseUrl ?? DEFAULT_BIBLIAS_APP_API_BASE_URL).replace(/\/$/, "");
   const chapterUrl = `${baseUrl}/${encodeURIComponent(slug)}/${reference.chapter}`;
   if (reference.verseStart === null) {
     return chapterUrl;
@@ -28,27 +28,29 @@ export function buildAcfPassageUrl(
   return `${chapterUrl}/${verses}`;
 }
 
-/** Fetch verse selections and whole chapters. Example: createAcfPassageProvider({ fetch }).getPassage(reference). */
-export function createAcfPassageProvider(options: AcfPassageProviderOptions = {}): PassageProvider {
+/** Fetch verse selections and whole chapters. Example: createBibliasAppPassageProvider({ fetch }).getPassage(reference). */
+export function createBibliasAppPassageProvider(
+  options: BibliasAppPassageProviderOptions = {},
+): PassageProvider {
   const fetcher = options.fetch ?? globalThis.fetch;
 
   if (typeof fetcher !== "function") {
-    throw new Error("No fetch implementation is available for the ACF passage provider");
+    throw new Error("No fetch implementation is available for the biblias.app passage provider");
   }
 
   return {
     async getPassage(reference, signal) {
       const init: RequestInit = signal ? { signal } : {};
-      const response = await fetcher(buildAcfPassageUrl(reference, options), init);
+      const response = await fetcher(buildBibliasAppPassageUrl(reference, options), init);
 
       if (!response.ok) {
         throw new Error(
-          `ACF passage request failed with HTTP ${response.status} for ${reference.raw}`,
+          `biblias.app passage request failed with HTTP ${response.status} for ${reference.raw}`,
         );
       }
 
       const payload: unknown = await response.json();
-      const verses = decodeAcfVerses(payload, reference);
+      const verses = decodeBibliasAppVerses(payload, reference);
 
       return {
         reference,
@@ -158,11 +160,14 @@ function decodeVerse(
   return { number, text };
 }
 
-/** Normalize the selected verses, or the entire chapter. Example: decodeAcfVerses(payload, reference). */
-export function decodeAcfVerses(payload: unknown, reference: BibleReference): PassageVerse[] {
+/** Normalize the selected verses, or the entire chapter. Example: decodeBibliasAppVerses(payload, reference). */
+export function decodeBibliasAppVerses(
+  payload: unknown,
+  reference: BibleReference,
+): PassageVerse[] {
   const collection = unwrapVerseCollection(payload);
   if (collection === undefined) {
-    throw new Error("Unsupported ACF passage response shape");
+    throw new Error("Unsupported biblias.app passage response shape");
   }
 
   const verses: PassageVerse[] = [];
@@ -193,7 +198,7 @@ export function decodeAcfVerses(payload: unknown, reference: BibleReference): Pa
     .sort((left, right) => left.number - right.number);
 
   if (filtered.length === 0) {
-    throw new Error("ACF passage response did not contain the requested verses");
+    throw new Error("biblias.app passage response did not contain the requested verses");
   }
 
   return filtered;

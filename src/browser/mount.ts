@@ -2,7 +2,10 @@ import clsx from "clsx/lite";
 
 import { bibleReferenceKey, formatBibleReference, parseBibleReferences } from "../core/parser";
 import type { BibleReference, Passage, PassageProvider } from "../core/types";
-import { buildAcfPassageUrl, createAcfPassageProvider } from "../providers/biblias.app";
+import {
+  buildBibliasAppPassageUrl,
+  createBibliasAppPassageProvider,
+} from "../providers/biblias.app";
 
 const SHOW_TEXT = 4;
 const FILTER_ACCEPT = 1;
@@ -83,8 +86,9 @@ export function mountBibleReferences(
   options: MountBibleReferencesOptions = {},
 ): BibleReferencesHandle {
   const document = getDocument(root);
-  const provider = options.provider ?? createAcfPassageProvider();
-  const getHref = options.getHref ?? ((reference: BibleReference) => buildAcfPassageUrl(reference));
+  const provider = options.provider ?? createBibliasAppPassageProvider();
+  const getHref =
+    options.getHref ?? ((reference: BibleReference) => buildBibliasAppPassageUrl(reference));
   const preview = options.preview ?? true;
   const maxPreviewVerses = options.maxPreviewVerses ?? 8;
 
