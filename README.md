@@ -16,6 +16,7 @@ O primeiro MVP já está implementado. Ele inclui:
 - tooltip por hover e foco;
 - intervalos e listas de versículos (`Sl 119:1-20,29,32,34,37-40`) sem limite de versículos no preview;
 - capítulos inteiros em tooltips com rolagem por mouse ou teclado;
+- integração com React (`@coisasdoalto/bible-references/react`), com renderização no servidor;
 - provider HTTP para a API do biblias.app (tradução ACF);
 - testes de parser, provider e DOM.
 
@@ -99,6 +100,31 @@ personalizadas com `--br-tooltip-width` e `--br-tooltip-max-height` (padrão: `2
 A camada DOM ignora referências dentro de `script`, `style`, `code`, `pre`, controles de formulário, links existentes, botões, conteúdo editável e elementos marcados com `data-bible-references-ignore`.
 
 Quando `getHref` não é informado, o link aponta para a página de leitura do biblias.app, por exemplo `https://biblias.app/acf/rm/1/1-8`. O link do rodapé do tooltip sempre usa o `source` do provider.
+
+### React
+
+O adaptador React fica em um subpath do mesmo pacote. `react` (versão 18 ou superior) é uma dependência peer opcional: quem não usa React não precisa dele.
+
+```tsx
+import { BibleReferences, BibleReferencesProvider } from "@coisasdoalto/bible-references/react";
+import "@coisasdoalto/bible-references/style.css";
+
+export function Article() {
+  return (
+    <BibleReferencesProvider>
+      <p>
+        <BibleReferences>Leia Romanos 1:1-8 e João 3:16.</BibleReferences>
+      </p>
+    </BibleReferencesProvider>
+  );
+}
+```
+
+Diferente do `mountBibleReferences`, o React renderiza os links: a biblioteca não troca nós de texto no DOM. Por isso o texto pode mudar a qualquer momento, sem `key`, e os links também são gerados na renderização no servidor (Astro, Next.js); os previews ligam depois da hidratação.
+
+- `BibleReferencesProvider` cria um tooltip compartilhado e recebe as mesmas opções do `mountBibleReferences` (`provider`, `getHref`, `preview`, `theme`, `openIn`). `container` aceita um elemento ou um `ref`, para anexar o tooltip dentro de um modal. Mantenha `provider` estável (fora do componente ou em `useMemo`).
+- `BibleReferences` liga as referências no texto dos filhos, em qualquer profundidade, ignorando `code`, `pre`, `a`, `button`, controles de formulário e elementos com `data-bible-references-ignore`. Componentes próprios entram desde que renderizem os `children` recebidos.
+- `BibleReferenceLink` renderiza o link de uma referência já analisada (`parseBibleReferences`). Sem provider, os links aparecem sem preview.
 
 ### Provider
 

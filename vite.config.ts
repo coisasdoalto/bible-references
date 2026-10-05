@@ -10,10 +10,14 @@ export default defineConfig({
   ],
   build: {
     lib: {
-      entry: "src/entry.ts",
+      entry: { index: "src/entry.ts", react: "src/react/index.ts" },
       formats: ["es"],
-      fileName: "index",
+      fileName: (_format, entryName) => `${entryName}.js`,
       cssFileName: "style",
+    },
+    rollupOptions: {
+      // React is an optional peer dependency of the "react" entry.
+      external: ["react", "react/jsx-runtime"],
     },
     cssMinify: "lightningcss",
     sourcemap: true,
