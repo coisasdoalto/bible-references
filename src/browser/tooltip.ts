@@ -21,6 +21,8 @@ export interface TooltipView {
   showLoading(reference: BibleReference): void;
   showPassage(passage: Passage, reference: BibleReference): void;
   showError(reference: BibleReference, onRetry: () => void): void;
+  open(): void;
+  close(): void;
   place(anchor: HTMLElement): void;
   setTheme(theme: ResolvedTooltipTheme): void;
 }
@@ -85,9 +87,26 @@ export function createTooltipView(document: Document, options: TooltipViewOption
   const root = createElement(document, "div", rootClassName);
   root.id = options.id;
   root.setAttribute("role", "tooltip");
+  // The tooltip can live inside the mounted root; keep its own text from being linked.
+  root.setAttribute("data-bible-references-ignore", "");
   root.dataset.brTheme = "light";
   root.dataset.brPlacement = "bottom";
   root.hidden = true;
+  // Manual popovers render in the top layer, above modal dialogs and any z-index.
+  const usesPopover = typeof root.showPopover === "function";
+  if (usesPopover) {
+    root.setAttribute("popover", "manual");
+  }
+  // The browser is the source of truth: a manual popover does not react to its dialog closing,
+  // so the tracked flag can go stale. Fall back to the flag where :popover-open is unsupported.
+  let popoverOpen = false;
+  const isPopoverOpen = (): boolean => {
+    try {
+      return root.matches(":popover-open");
+    } catch {
+      return popoverOpen;
+    }
+  };
 
   const card = createElement(document, "div", cardClassName);
   const header = createElement(document, "div", headerClassName);
@@ -200,11 +219,47 @@ export function createTooltipView(document: Document, options: TooltipViewOption
       setFooter(reference, { verb: "Abrir em", fallback: "Abrir passagem" }, translationName);
     },
 
+    open() {
+      root.hidden = false;
+      if (usesPopover && !isPopoverOpen()) {
+        try {
+          root.showPopover();
+          popoverOpen = true;
+        } catch {
+          // Not connected or not allowed; the tooltip still works as a fixed element.
+        }
+      }
+    },
+
+    close() {
+      if (usesPopover && (popoverOpen || isPopoverOpen())) {
+        try {
+          root.hidePopover();
+        } catch {
+          // Already hidden or disconnected.
+        }
+      }
+      popoverOpen = false;
+      root.hidden = true;
+    },
+
     setTheme(theme) {
       root.dataset.brTheme = theme;
     },
 
     place(anchor) {
+      // A transformed ancestor becomes the containing block of fixed elements and scales their
+      // coordinates and size. Measure where the origin lands and how much the ancestor scales,
+      // constrain the size in the tooltip's own units, then convert the viewport coordinates into
+      // that space. Translation and scale are supported; rotation and skew are not.
+      root.style.top = "0px";
+      root.style.left = "0px";
+      const origin = root.getBoundingClientRect();
+      const scaleX = root.offsetWidth > 0 ? origin.width / root.offsetWidth : 1;
+      const scaleY = root.offsetHeight > 0 ? origin.height / root.offsetHeight : 1;
+      root.style.setProperty("--br-scale-x", String(scaleX));
+      root.style.setProperty("--br-scale-y", String(scaleY));
+
       const rect = anchor.getBoundingClientRect();
       const viewportWidth =
         document.documentElement.clientWidth || document.defaultView?.innerWidth || 1024;
@@ -228,11 +283,11 @@ export function createTooltipView(document: Document, options: TooltipViewOption
       );
 
       root.dataset.brPlacement = placement;
-      root.style.top = `${top}px`;
-      root.style.left = `${left}px`;
+      root.style.top = `${(top - origin.top) / scaleY}px`;
+      root.style.left = `${(left - origin.left) / scaleX}px`;
       root.style.setProperty(
         "--br-arrow-x",
-        `${clamp(anchorCenter - left, ARROW_INSET, width - ARROW_INSET)}px`,
+        `${clamp(anchorCenter - left, ARROW_INSET, width - ARROW_INSET) / scaleX}px`,
       );
     },
   };

@@ -3,11 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --cwd \"$(cd ../.. && pwd)\" build && vite --force",
-    "build": "bun run --cwd \"$(cd ../.. && pwd)\" build && vite build"
+    "dev": "vite",
+    "dev:local": "bun run --cwd ../.. build && BIBLE_REFERENCES_LOCAL=1 vite --force",
+    "build": "vite build"
   },
   "dependencies": {
-    "@coisasdoalto/bible-references": "file:../.."
+    "@coisasdoalto/bible-references": "0.2.0"
   },
   "devDependencies": {
     "vite": "8.3.0"

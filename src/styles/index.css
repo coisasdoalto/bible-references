@@ -43,9 +43,18 @@
     --br-c-verse-number: var(--br-tooltip-verse-number-color, var(--br-c-link));
 
     box-sizing: border-box;
-    width: min(var(--br-tooltip-width, 24rem), calc(100vw - 2rem));
+    width: min(var(--br-tooltip-width, 24rem), calc((100vw - 2rem) / var(--br-scale-x, 1)));
     color-scheme: light;
     color: var(--br-c-color);
+
+    /* Reset the user-agent styles of [popover]; the position comes from inline top and left. */
+    inset: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    background: transparent;
+    border: 0;
   }
 
   .br-tooltip[data-br-theme="dark"] {
@@ -67,7 +76,10 @@
   }
 
   .br-tooltip-card {
-    max-height: min(var(--br-tooltip-max-height, 24rem), calc(100dvh - 2rem));
+    max-height: min(
+      var(--br-tooltip-max-height, 24rem),
+      calc((100dvh - 2rem) / var(--br-scale-y, 1))
+    );
     background: var(--br-c-background);
     border-radius: var(--br-tooltip-radius, 0.625rem);
     box-shadow:

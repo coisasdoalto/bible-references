@@ -23,6 +23,11 @@ export interface MountBibleReferencesOptions {
   readonly getHref?: (reference: BibleReference) => string;
   readonly preview?: boolean;
   readonly theme?: TooltipTheme;
+  /**
+   * Element that receives the tooltip. Defaults to the document body. Pass an element inside a
+   * modal or popover so pointer events and hover inside the tooltip count as inside it.
+   */
+  readonly container?: HTMLElement;
   /** Where the tooltip footer link opens. Defaults to "new-tab". */
   readonly openIn?: LinkOpenIn;
 }
@@ -87,7 +92,7 @@ export function mountBibleReferences(
     getFallbackHref: getHref,
   });
   const tooltip = view.element;
-  (document.body ?? document.documentElement).append(tooltip);
+  (options.container ?? document.body ?? document.documentElement).append(tooltip);
 
   const theme = options.theme ?? "auto";
   const colorScheme =
@@ -107,6 +112,7 @@ export function mountBibleReferences(
   let tooltipHovered = false;
   let tooltipFocused = false;
   let openedAt = 0;
+  let keyboardModality = false;
   let hideTimeout: ReturnType<typeof setTimeout> | undefined;
 
   function closeTooltip(): void {
@@ -125,7 +131,7 @@ export function mountBibleReferences(
     tooltipHovered = false;
     tooltipFocused = false;
     activeLink = null;
-    tooltip.hidden = true;
+    view.close();
   }
 
   function hideTooltip(link: HTMLAnchorElement): void {
@@ -143,7 +149,7 @@ export function mountBibleReferences(
 
     link.removeAttribute("aria-describedby");
     activeLink = null;
-    tooltip.hidden = true;
+    view.close();
   }
 
   function scheduleTooltipHide(link: HTMLAnchorElement): void {
@@ -160,7 +166,7 @@ export function mountBibleReferences(
     openedAt = performance.now();
     clearTimeout(hideTimeout);
     link.setAttribute("aria-describedby", tooltip.id);
-    tooltip.hidden = false;
+    view.open();
     view.showLoading(reference);
     view.place(link);
 
@@ -241,7 +247,11 @@ export function mountBibleReferences(
       "focus",
       () => {
         state.focused = true;
-        void showTooltip(link, reference);
+        // Programmatic focus (a dialog focusing its first control, an autofocus) is not a request
+        // for a preview; only keyboard navigation opens it on focus.
+        if (keyboardModality) {
+          void showTooltip(link, reference);
+        }
       },
       { signal: eventController.signal },
     );
@@ -288,6 +298,34 @@ export function mountBibleReferences(
         }
       },
       { ...listenerOptions, capture: true, passive: true },
+    );
+
+    // Only Tab navigation counts as keyboard focus. Other keys (Enter opening a dialog that then
+    // focuses its first control) must not, and the flag is cleared as soon as the key is released.
+    const captureOptions = { ...listenerOptions, capture: true, passive: true };
+    document.addEventListener(
+      "keydown",
+      (event) => (keyboardModality = event.key === "Tab"),
+      captureOptions,
+    );
+    document.addEventListener("keyup", () => (keyboardModality = false), captureOptions);
+    document.addEventListener("pointerdown", () => (keyboardModality = false), captureOptions);
+
+    // A dialog closing hides its content without telling the preview (a manual popover would stay
+    // in the top layer), so close it when the dialog that contains the tooltip or the active
+    // reference closes.
+    document.addEventListener(
+      "close",
+      (event) => {
+        const dialog = event.target;
+        if (
+          dialog instanceof Node &&
+          (dialog.contains(tooltip) || (activeLink !== null && dialog.contains(activeLink)))
+        ) {
+          closeTooltip();
+        }
+      },
+      captureOptions,
     );
 
     // Taps outside do not reliably emit mouseleave/blur on touch devices.
