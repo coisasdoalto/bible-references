@@ -29,8 +29,3 @@ export function expandVerseRanges(ranges: readonly VerseRange[]): number[] {
     Array.from({ length: end - start + 1 }, (_, offset) => start + offset),
   );
 }
-
-/** Check whether a verse number belongs to any range. An empty list selects the whole chapter. */
-export function isVerseSelected(ranges: readonly VerseRange[], verse: number): boolean {
-  return ranges.length === 0 || ranges.some(({ start, end }) => verse >= start && verse <= end);
-}

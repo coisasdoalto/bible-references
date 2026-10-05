@@ -5,7 +5,7 @@ import type {
   PassageTranslation,
   PassageVerse,
 } from "../core/types";
-import { expandVerseRanges, formatVerseRanges, isVerseSelected } from "../core/verses";
+import { expandVerseRanges, formatVerseRanges } from "../core/verses";
 
 export const DEFAULT_BIBLIAS_APP_API_BASE_URL = "https://biblias.app/api/v1/bible/acf/passages";
 export const DEFAULT_BIBLIAS_APP_READ_BASE_URL = "https://biblias.app/acf";
@@ -234,13 +234,9 @@ export function decodeBibliasAppVerses(
     }
   }
 
-  const filtered = verses
-    .filter((verse) => isVerseSelected(reference.verseRanges, verse.number))
-    .sort((left, right) => left.number - right.number);
-
-  if (filtered.length === 0) {
-    throw new Error("biblias.app passage response did not contain the requested verses");
+  if (verses.length === 0) {
+    throw new Error("biblias.app passage response did not contain any verses");
   }
 
-  return filtered;
+  return verses.sort((left, right) => left.number - right.number);
 }

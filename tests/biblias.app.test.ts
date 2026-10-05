@@ -117,7 +117,7 @@ describe("biblias.app passage provider", () => {
     );
   });
 
-  it("requests several ranges and keeps only the selected verses", async () => {
+  it("requests several ranges and decodes the verses the API returns", () => {
     const selected: BibleReference = {
       ...reference,
       raw: "Rm 1:1-2,4",
@@ -132,15 +132,17 @@ describe("biblias.app passage provider", () => {
     expect(buildBibliasAppReadUrl(selected)).toBe("https://biblias.app/acf/rm/1/1-2,4");
 
     const payload = {
+      verses: [1, 2, 4],
       data: [
         { verse: 1, text: "Um" },
         { verse: 2, text: "Dois" },
-        { verse: 3, text: "Três" },
         { verse: 4, text: "Quatro" },
       ],
     };
-    expect(decodeBibliasAppVerses(payload, selected).map((verse) => verse.number)).toEqual([
-      1, 2, 4,
+    expect(decodeBibliasAppVerses(payload, selected)).toEqual([
+      { number: 1, text: "Um" },
+      { number: 2, text: "Dois" },
+      { number: 4, text: "Quatro" },
     ]);
     expect(decodeBibliasAppVerses({ data: ["Um", "Dois", "Quatro"] }, selected)).toEqual([
       { number: 1, text: "Um" },
