@@ -97,7 +97,16 @@ export function createTooltipView(document: Document, options: TooltipViewOption
   if (usesPopover) {
     root.setAttribute("popover", "manual");
   }
+  // The browser is the source of truth: a manual popover does not react to its dialog closing,
+  // so the tracked flag can go stale. Fall back to the flag where :popover-open is unsupported.
   let popoverOpen = false;
+  const isPopoverOpen = (): boolean => {
+    try {
+      return root.matches(":popover-open");
+    } catch {
+      return popoverOpen;
+    }
+  };
 
   const card = createElement(document, "div", cardClassName);
   const header = createElement(document, "div", headerClassName);
@@ -212,17 +221,25 @@ export function createTooltipView(document: Document, options: TooltipViewOption
 
     open() {
       root.hidden = false;
-      if (usesPopover && !popoverOpen) {
-        popoverOpen = true;
-        root.showPopover();
+      if (usesPopover && !isPopoverOpen()) {
+        try {
+          root.showPopover();
+          popoverOpen = true;
+        } catch {
+          // Not connected or not allowed; the tooltip still works as a fixed element.
+        }
       }
     },
 
     close() {
-      if (usesPopover && popoverOpen) {
-        popoverOpen = false;
-        root.hidePopover();
+      if (usesPopover && (popoverOpen || isPopoverOpen())) {
+        try {
+          root.hidePopover();
+        } catch {
+          // Already hidden or disconnected.
+        }
       }
+      popoverOpen = false;
       root.hidden = true;
     },
 

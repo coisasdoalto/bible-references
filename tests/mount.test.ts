@@ -459,4 +459,23 @@ describe("mountBibleReferences", () => {
       Reflect.deleteProperty(HTMLElement.prototype, "hidePopover");
     }
   });
+
+  it("closes the preview when the dialog that contains it closes", () => {
+    document.body.innerHTML = "<dialog id='dialog' open><p>Sl 1</p></dialog>";
+    const dialog = requireFixtureElement<HTMLElement>("#dialog");
+    const handle = mountBibleReferences(dialog, {
+      provider: new FakeChapterProvider(),
+      container: dialog,
+    });
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+    requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    expect(tooltip.hidden).toBe(false);
+
+    dialog.dispatchEvent(new Event("close"));
+
+    expect(tooltip.hidden).toBe(true);
+    handle.destroy();
+  });
 });
