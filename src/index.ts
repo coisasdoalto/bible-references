@@ -3,6 +3,7 @@ export {
   type MountBibleReferencesOptions,
   mountBibleReferences,
 } from "./browser/mount";
+export type { LinkOpenIn, TooltipTheme } from "./browser/tooltip";
 export {
   BIBLE_BOOKS,
   type BibleBook,
@@ -19,11 +20,15 @@ export type {
   BibleReference,
   Passage,
   PassageProvider,
+  PassageSource,
+  PassageTranslation,
   PassageVerse,
 } from "./core/types";
 export {
-  type AcfPassageProviderOptions,
-  buildAcfPassageUrl,
-  createAcfPassageProvider,
-  DEFAULT_ACF_API_BASE_URL,
-} from "./providers/acf";
+  type BibliasAppPassageProviderOptions,
+  buildBibliasAppPassageUrl,
+  buildBibliasAppReadUrl,
+  createBibliasAppPassageProvider,
+  DEFAULT_BIBLIAS_APP_API_BASE_URL,
+  DEFAULT_BIBLIAS_APP_READ_BASE_URL,
+} from "./providers/biblias.app";

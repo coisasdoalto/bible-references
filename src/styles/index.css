@@ -12,17 +12,181 @@
 
 @layer components {
   .br-reference {
+    --br-c-accent: var(--br-accent, oklch(0.45049 0.1204 149.92));
+
     color: var(--br-reference-color, currentColor);
+    text-decoration-color: var(--br-c-accent);
+    border-radius: 0.125rem;
+
+    /* A tap opens the preview, so the long-press link menu is not needed on iOS. */
+    -webkit-touch-callout: none;
+  }
+
+  .br-reference:hover {
+    background: color-mix(in srgb, var(--br-c-accent) 10%, transparent);
   }
 
   .br-tooltip {
+    /*
+     * Public tokens are the --br-* custom properties read below. The --br-c-* names are
+     * internal and resolve each token with a light and a dark default.
+     */
+    --br-c-accent: var(--br-accent, oklch(0.45049 0.1204 149.92));
+    --br-c-background: var(--br-tooltip-background, #fff);
+    --br-c-color: var(--br-tooltip-color, #1c2330);
+    --br-c-muted: var(--br-tooltip-muted-color, #5b6575);
+    --br-c-header-background: var(--br-tooltip-header-background, var(--br-c-accent));
+    --br-c-header-color: var(--br-tooltip-header-color, #fff);
+    --br-c-footer-background: var(--br-tooltip-footer-background, #f4f6f9);
+    --br-c-border: var(--br-tooltip-border-color, #e1e6ee);
+    --br-c-link: var(--br-tooltip-link-color, var(--br-c-accent));
+    --br-c-verse-number: var(--br-tooltip-verse-number-color, var(--br-c-link));
+
     box-sizing: border-box;
-    max-width: min(var(--br-tooltip-max-width, 24rem), calc(100vw - 2rem));
+    width: min(var(--br-tooltip-width, 24rem), calc(100vw - 2rem));
+    color-scheme: light;
+    color: var(--br-c-color);
+  }
+
+  .br-tooltip[data-br-theme="dark"] {
+    --br-c-background: var(--br-tooltip-background, #1b2230);
+    --br-c-color: var(--br-tooltip-color, #e6eaf2);
+    --br-c-muted: var(--br-tooltip-muted-color, #9aa6b8);
+    --br-c-header-background: var(
+      --br-tooltip-header-background,
+      color-mix(in oklch, var(--br-c-accent) 88%, white)
+    );
+    --br-c-footer-background: var(--br-tooltip-footer-background, #151b27);
+    --br-c-border: var(--br-tooltip-border-color, #2a3345);
+    --br-c-link: var(
+      --br-tooltip-link-color,
+      color-mix(in oklch, var(--br-c-accent) 45%, white)
+    );
+
+    color-scheme: dark;
+  }
+
+  .br-tooltip-card {
     max-height: min(var(--br-tooltip-max-height, 24rem), calc(100dvh - 2rem));
-    overflow-y: auto;
+    background: var(--br-c-background);
+    border-radius: var(--br-tooltip-radius, 0.625rem);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--br-c-color) 14%, transparent),
+      0 2px 4px rgb(0 0 0 / 0.08),
+      0 16px 40px rgb(0 0 0 / 0.2);
+  }
+
+  .br-tooltip-header {
+    color: var(--br-c-header-color);
+    background: var(--br-c-header-background);
+  }
+
+  .br-tooltip-badge {
+    border: 1px solid color-mix(in srgb, var(--br-c-header-color) 60%, transparent);
+  }
+
+  .br-tooltip-body {
     overscroll-behavior: contain;
-    color: var(--br-tooltip-color, #fff);
-    background: var(--br-tooltip-background, #18181b);
-    border-radius: var(--br-tooltip-radius, 0.5rem);
+    scrollbar-width: thin;
+    font-family: var(--br-tooltip-font-family, ui-serif, Georgia, "Times New Roman", serif);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  /* Leaves room for the scroll fade so the last line stays readable at the end. */
+  .br-tooltip-body > :last-child {
+    margin-bottom: 1.25rem;
+  }
+
+  .br-tooltip-body::after {
+    content: "";
+    position: sticky;
+    bottom: 0;
+    display: block;
+    height: 1.25rem;
+    margin-top: -1.25rem;
+    pointer-events: none;
+    background: linear-gradient(to bottom, transparent, var(--br-c-background));
+  }
+
+  .br-tooltip-body:focus-visible {
+    outline: 2px solid var(--br-c-link);
+    outline-offset: -2px;
+  }
+
+  .br-verse-number {
+    color: var(--br-c-verse-number);
+    font-family: var(--br-tooltip-ui-font-family, system-ui, sans-serif);
+  }
+
+  .br-truncated {
+    color: var(--br-c-muted);
+  }
+
+  .br-tooltip-footer {
+    background: var(--br-c-footer-background);
+    border-top: 1px solid var(--br-c-border);
+    font-family: var(--br-tooltip-ui-font-family, system-ui, sans-serif);
+  }
+
+  .br-tooltip-link {
+    color: var(--br-c-link);
+  }
+
+  .br-tooltip-note {
+    color: var(--br-c-muted);
+  }
+
+  .br-tooltip-icon[data-br-source="biblias.app"] {
+    background: center / contain no-repeat url("../assets/biblias-app.svg");
+  }
+
+  .br-tooltip-error {
+    font-family: var(--br-tooltip-ui-font-family, system-ui, sans-serif);
+  }
+
+  .br-tooltip-retry {
+    color: var(--br-c-link);
+    background: transparent;
+    border-color: var(--br-c-link);
+    font-family: var(--br-tooltip-ui-font-family, system-ui, sans-serif);
+  }
+
+  .br-skeleton {
+    background: var(--br-c-border);
+    animation: br-pulse 1.4s ease-in-out infinite;
+  }
+
+  .br-tooltip-arrow {
+    left: var(--br-arrow-x, 50%);
+    margin-left: -0.375rem;
+    border-radius: 0.125rem 0 0 0;
+  }
+
+  .br-tooltip[data-br-placement="bottom"] .br-tooltip-arrow {
+    top: -0.375rem;
+    background: var(--br-c-header-background);
+  }
+
+  .br-tooltip[data-br-placement="top"] .br-tooltip-arrow {
+    bottom: -0.375rem;
+    background: var(--br-c-footer-background);
+  }
+
+  @keyframes br-pulse {
+    0%,
+    100% {
+      opacity: 0.5;
+    }
+
+    50% {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .br-skeleton {
+      animation: none;
+    }
   }
 }

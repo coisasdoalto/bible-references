@@ -26,6 +26,20 @@ export interface Passage {
   readonly text: string;
 }
 
+export interface PassageTranslation {
+  readonly abbreviation: string;
+  readonly name: string;
+}
+
+export interface PassageSource {
+  readonly id: string;
+  readonly name: string;
+  /** Public page where the passage can be read in full. */
+  getUrl(reference: BibleReference): string;
+}
+
 export interface PassageProvider {
+  readonly translation?: PassageTranslation;
+  readonly source?: PassageSource;
   getPassage(reference: BibleReference, signal?: AbortSignal): Promise<Passage>;
 }
