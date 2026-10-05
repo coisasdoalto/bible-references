@@ -368,6 +368,9 @@ describe("mountBibleReferences", () => {
     // Wanted viewport position: left = 320 - 200 / 2 = 220, top = 220 + 12 = 232.
     expect(Number.parseFloat(tooltip.style.left)).toBeCloseTo((220 - 100) / 0.5);
     expect(Number.parseFloat(tooltip.style.top)).toBeCloseTo((232 - 50) / 0.5);
+    // The size limits are expressed in the tooltip's own (unscaled) units.
+    expect(tooltip.style.getPropertyValue("--br-scale-x")).toBe("0.5");
+    expect(tooltip.style.getPropertyValue("--br-scale-y")).toBe("0.5");
 
     handle.destroy();
     rectSpy.mockRestore();

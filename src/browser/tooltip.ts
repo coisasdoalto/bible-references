@@ -248,6 +248,18 @@ export function createTooltipView(document: Document, options: TooltipViewOption
     },
 
     place(anchor) {
+      // A transformed ancestor becomes the containing block of fixed elements and scales their
+      // coordinates and size. Measure where the origin lands and how much the ancestor scales,
+      // constrain the size in the tooltip's own units, then convert the viewport coordinates into
+      // that space. Translation and scale are supported; rotation and skew are not.
+      root.style.top = "0px";
+      root.style.left = "0px";
+      const origin = root.getBoundingClientRect();
+      const scaleX = root.offsetWidth > 0 ? origin.width / root.offsetWidth : 1;
+      const scaleY = root.offsetHeight > 0 ? origin.height / root.offsetHeight : 1;
+      root.style.setProperty("--br-scale-x", String(scaleX));
+      root.style.setProperty("--br-scale-y", String(scaleY));
+
       const rect = anchor.getBoundingClientRect();
       const viewportWidth =
         document.documentElement.clientWidth || document.defaultView?.innerWidth || 1024;
@@ -271,17 +283,6 @@ export function createTooltipView(document: Document, options: TooltipViewOption
       );
 
       root.dataset.brPlacement = placement;
-
-      // A transformed ancestor becomes the containing block of fixed elements and scales their
-      // coordinates. Measure where the origin lands and how much the ancestor scales, then
-      // convert the viewport coordinates into the tooltip's own coordinate space. Translation
-      // and scale are supported; rotation and skew are not.
-      root.style.top = "0px";
-      root.style.left = "0px";
-      const origin = root.getBoundingClientRect();
-      const scaleX = root.offsetWidth > 0 ? origin.width / root.offsetWidth : 1;
-      const scaleY = root.offsetHeight > 0 ? origin.height / root.offsetHeight : 1;
-
       root.style.top = `${(top - origin.top) / scaleY}px`;
       root.style.left = `${(left - origin.left) / scaleX}px`;
       root.style.setProperty(
