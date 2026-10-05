@@ -21,6 +21,8 @@ bun run dev:local    # usa o build local da biblioteca (../../dist)
 bun run build
 ```
 
+> A opção `container` (modal), a camada superior do navegador e a abertura por foco só pelo teclado ainda não estão na versão publicada (`0.1.0`). Até a próxima versão ser publicada, use `bun run dev:local` para ver a seção "Dentro de um modal" como descrita abaixo.
+
 Para testar no celular, use `bun run dev -- --host`.
 
 ## O que o exemplo mostra

@@ -106,7 +106,7 @@ Um `PassageProvider` implementa `getPassage(reference, signal?)` e pode expor `t
 
 ### Container do tooltip
 
-Por padrão, o tooltip é anexado ao `body` e exibido na camada superior do navegador (Popover API, quando disponível), então aparece acima de modais e de qualquer `z-index`. Mesmo assim, modais bloqueiam o ponteiro fora deles: em páginas com modais ou popovers (por exemplo, Radix, vaul ou `<dialog>`), passe `container` com um elemento dentro deles. Assim, o hover e os toques no tooltip contam como interações dentro do modal, que não os bloqueia. A posição é corrigida automaticamente quando um ancestral usa `transform`.
+Por padrão, o tooltip é anexado ao `body` e exibido na camada superior do navegador (Popover API, quando disponível), então aparece acima de modais e de qualquer `z-index`. Mesmo assim, modais bloqueiam o ponteiro fora deles: em páginas com modais ou popovers (por exemplo, Radix, vaul ou `<dialog>`), passe `container` com um elemento dentro deles. Assim, o hover e os toques no tooltip contam como interações dentro do modal, que não os bloqueia. A posição é corrigida automaticamente quando um ancestral usa `transform` com translação e escala; rotação e skew não são suportados.
 
 ```ts
 mountBibleReferences(noteElement, { container: noteElement });
