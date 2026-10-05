@@ -14,7 +14,7 @@ O primeiro MVP já está implementado. Ele inclui:
 - `:` ou `.` como separador entre capítulo e versículo;
 - transformação de text nodes em links sem reescrever `innerHTML`;
 - tooltip por hover e foco;
-- preview de intervalos limitado a 8 versículos por padrão;
+- intervalos e listas de versículos (`Sl 119:1-20,29,32,34,37-40`) sem limite de versículos no preview;
 - capítulos inteiros em tooltips com rolagem por mouse ou teclado;
 - provider HTTP para a API do biblias.app (tradução ACF);
 - testes de parser, provider e DOM.
@@ -57,12 +57,9 @@ import "@coisasdoalto/bible-references/style.css";
 const references = parseBibleReferences("Leia Romanos 1:1-8 e João 3:16.");
 
 const bibleReferences = mountBibleReferences(document.body, {
-  maxPreviewVerses: 8,
-
   // O href final do site ainda pode ser definido pelo consumidor.
   getHref(reference) {
-    const chapterUrl = `https://meu-site.example/${reference.bookId}/${reference.chapter}`;
-    return reference.verseStart === null ? chapterUrl : `${chapterUrl}/${reference.verseStart}`;
+    return `https://meu-site.example/${reference.bookId}/${reference.chapter}`;
   },
 });
 
@@ -83,13 +80,14 @@ Jo 3.16
 1 Co 13:4
 1Co 13:4
 1 Coríntios 13:4-7
+Sl 119:1-20,29,32,34,37-40
 Sl 117
 Salmos 119
 ```
 
-Referências sem versículos têm `verseStart` e `verseEnd` iguais a `null`. O provider
-carrega o capítulo inteiro, sem aplicar `maxPreviewVerses`, usando uma URL como
-`https://biblias.app/api/v1/bible/acf/passages/sl/117`.
+Os versículos ficam em `verseRanges`: uma lista de `{ start, end }` ordenada, sem sobreposições (`37-40,1-20,10-25` vira `1-25` e `37-40`). Referências a capítulos inteiros têm `verseRanges` vazio. Em listas, vírgula seguida de espaço só continua a lista quando o número não começa outra referência ou uma palavra: `Jo 3:16, 1 Jo 4:8` são duas referências, e `Sl 119:1-20, 29` é uma só.
+
+O preview não tem limite de versículos: o tooltip mostra toda a seleção, com rolagem. O provider busca capítulos inteiros e seleções com uma URL como `https://biblias.app/api/v1/bible/acf/passages/sl/119/1-20,29,32`.
 
 A referência não navega ao ser clicada: clique ou toque abrem o tooltip (no desktop, hover e foco também abrem). O tooltip fecha ao rolar a página, ao tocar fora dele ou com `Escape`; rolar dentro do tooltip não o fecha.
 

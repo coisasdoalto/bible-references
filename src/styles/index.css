@@ -119,10 +119,6 @@
     font-family: var(--br-tooltip-ui-font-family, system-ui, sans-serif);
   }
 
-  .br-truncated {
-    color: var(--br-c-muted);
-  }
-
   .br-tooltip-footer {
     background: var(--br-c-footer-background);
     border-top: 1px solid var(--br-c-border);
