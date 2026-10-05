@@ -13,8 +13,7 @@ const reference: BibleReference = {
   bookId: "ROM",
   bookName: "Romanos",
   chapter: 1,
-  verseStart: 1,
-  verseEnd: 8,
+  verseRanges: [{ start: 1, end: 8 }],
   start: 0,
   end: 8,
 };
@@ -53,8 +52,7 @@ describe("biblias.app passage provider", () => {
       bookId: "PSA",
       bookName: "Salmos",
       chapter: 117,
-      verseStart: null,
-      verseEnd: null,
+      verseRanges: [],
     };
     const fake = new FakeChapterFetch();
     const passage = await createBibliasAppPassageProvider({ fetch: fake.fetch }).getPassage(
@@ -80,7 +78,9 @@ describe("biblias.app passage provider", () => {
   });
 
   it("decodes the current biblias.app API response shape", () => {
-    expect(decodeBibliasAppVerses(apiPayload, { ...reference, verseEnd: 2 })).toEqual([
+    expect(
+      decodeBibliasAppVerses(apiPayload, { ...reference, verseRanges: [{ start: 1, end: 2 }] }),
+    ).toEqual([
       { number: 1, text: "Primeiro verso" },
       { number: 2, text: "Segundo verso" },
     ]);
@@ -98,7 +98,10 @@ describe("biblias.app passage provider", () => {
     const provider = createBibliasAppPassageProvider({
       fetch: fetcher as typeof fetch,
     });
-    const passage = await provider.getPassage({ ...reference, verseEnd: 2 });
+    const passage = await provider.getPassage({
+      ...reference,
+      verseRanges: [{ start: 1, end: 2 }],
+    });
 
     expect(fetcher).toHaveBeenCalledOnce();
     expect(passage.text).toBe("Primeiro verso Segundo verso");
@@ -109,8 +112,40 @@ describe("biblias.app passage provider", () => {
     expect(provider.translation).toEqual({ abbreviation: "ACF", name: "Almeida Corrigida Fiel" });
     expect(provider.source).toMatchObject({ id: "biblias.app", name: "biblias.app" });
     expect(provider.source?.getUrl(reference)).toBe("https://biblias.app/acf/rm/1/1-8");
-    expect(buildBibliasAppReadUrl({ ...reference, verseStart: null, verseEnd: null })).toBe(
+    expect(buildBibliasAppReadUrl({ ...reference, verseRanges: [] })).toBe(
       "https://biblias.app/acf/rm/1",
     );
+  });
+
+  it("requests several ranges and keeps only the selected verses", async () => {
+    const selected: BibleReference = {
+      ...reference,
+      raw: "Rm 1:1-2,4",
+      verseRanges: [
+        { start: 1, end: 2 },
+        { start: 4, end: 4 },
+      ],
+    };
+    expect(buildBibliasAppPassageUrl(selected)).toBe(
+      "https://biblias.app/api/v1/bible/acf/passages/rm/1/1-2,4",
+    );
+    expect(buildBibliasAppReadUrl(selected)).toBe("https://biblias.app/acf/rm/1/1-2,4");
+
+    const payload = {
+      data: [
+        { verse: 1, text: "Um" },
+        { verse: 2, text: "Dois" },
+        { verse: 3, text: "Três" },
+        { verse: 4, text: "Quatro" },
+      ],
+    };
+    expect(decodeBibliasAppVerses(payload, selected).map((verse) => verse.number)).toEqual([
+      1, 2, 4,
+    ]);
+    expect(decodeBibliasAppVerses({ data: ["Um", "Dois", "Quatro"] }, selected)).toEqual([
+      { number: 1, text: "Um" },
+      { number: 2, text: "Dois" },
+      { number: 4, text: "Quatro" },
+    ]);
   });
 });

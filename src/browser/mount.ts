@@ -22,7 +22,6 @@ export interface MountBibleReferencesOptions {
   readonly provider?: PassageProvider;
   readonly getHref?: (reference: BibleReference) => string;
   readonly preview?: boolean;
-  readonly maxPreviewVerses?: number;
   readonly theme?: TooltipTheme;
   /** Where the tooltip footer link opens. Defaults to "new-tab". */
   readonly openIn?: LinkOpenIn;
@@ -61,16 +60,6 @@ function shouldIgnoreTextNode(node: Text): boolean {
   return parent === null || parent.closest(IGNORED_ANCESTORS) !== null;
 }
 
-function previewReference(reference: BibleReference, maxVerses: number): BibleReference {
-  if (reference.verseStart === null) {
-    return reference;
-  }
-  return {
-    ...reference,
-    verseEnd: Math.min(reference.verseEnd, reference.verseStart + maxVerses - 1),
-  };
-}
-
 /** Link references and display passage previews. Example: mountBibleReferences(document.body). */
 export function mountBibleReferences(
   root: ParentNode,
@@ -83,11 +72,6 @@ export function mountBibleReferences(
     ((reference: BibleReference) =>
       provider.source?.getUrl(reference) ?? buildBibliasAppReadUrl(reference));
   const preview = options.preview ?? true;
-  const maxPreviewVerses = options.maxPreviewVerses ?? 8;
-
-  if (!Number.isSafeInteger(maxPreviewVerses) || maxPreviewVerses < 1) {
-    throw new Error("maxPreviewVerses must be a positive integer");
-  }
 
   const eventController = new AbortController();
   const requestControllers = new Set<AbortController>();
@@ -180,8 +164,7 @@ export function mountBibleReferences(
     view.showLoading(reference);
     view.place(link);
 
-    const previewed = previewReference(reference, maxPreviewVerses);
-    const key = bibleReferenceKey(previewed);
+    const key = bibleReferenceKey(reference);
     const cached = cache.get(key);
 
     if (cached) {
@@ -194,7 +177,7 @@ export function mountBibleReferences(
     requestControllers.add(controller);
 
     try {
-      const passage = await provider.getPassage(previewed, controller.signal);
+      const passage = await provider.getPassage(reference, controller.signal);
       cache.set(key, passage);
 
       if (activeLink === link) {

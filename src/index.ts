@@ -23,6 +23,7 @@ export type {
   PassageSource,
   PassageTranslation,
   PassageVerse,
+  VerseRange,
 } from "./core/types";
 export {
   type BibliasAppPassageProviderOptions,

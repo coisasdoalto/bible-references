@@ -5,6 +5,7 @@ import type {
   PassageTranslation,
   PassageVerse,
 } from "../core/types";
+import { expandVerseRanges, formatVerseRanges, isVerseSelected } from "../core/verses";
 
 export const DEFAULT_BIBLIAS_APP_API_BASE_URL = "https://biblias.app/api/v1/bible/acf/passages";
 export const DEFAULT_BIBLIAS_APP_READ_BASE_URL = "https://biblias.app/acf";
@@ -35,14 +36,10 @@ function buildPassagePath(
   const slug = bookSlugs?.[reference.bookId] ?? book.apiSlug;
   const base = baseUrl.replace(/\/$/, "");
   const chapterUrl = `${base}/${encodeURIComponent(slug)}/${reference.chapter}`;
-  if (reference.verseStart === null) {
+  if (reference.verseRanges.length === 0) {
     return chapterUrl;
   }
-  const verses =
-    reference.verseStart === reference.verseEnd
-      ? String(reference.verseStart)
-      : `${reference.verseStart}-${reference.verseEnd}`;
-  return `${chapterUrl}/${verses}`;
+  return `${chapterUrl}/${formatVerseRanges(reference.verseRanges)}`;
 }
 
 /** Build the API URL for a passage or chapter. Example: buildBibliasAppPassageUrl(reference). */
@@ -220,8 +217,9 @@ export function decodeBibliasAppVerses(
   const verses: PassageVerse[] = [];
 
   if (Array.isArray(collection)) {
+    const selectedNumbers = expandVerseRanges(reference.verseRanges);
     collection.forEach((value, index) => {
-      const verse = decodeVerse(value, (reference.verseStart ?? 1) + index);
+      const verse = decodeVerse(value, selectedNumbers[index] ?? index + 1);
       if (verse) {
         verses.push(verse);
       }
@@ -237,11 +235,7 @@ export function decodeBibliasAppVerses(
   }
 
   const filtered = verses
-    .filter(
-      (verse) =>
-        reference.verseStart === null ||
-        (verse.number >= reference.verseStart && verse.number <= reference.verseEnd),
-    )
+    .filter((verse) => isVerseSelected(reference.verseRanges, verse.number))
     .sort((left, right) => left.number - right.number);
 
   if (filtered.length === 0) {

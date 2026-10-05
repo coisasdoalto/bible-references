@@ -19,7 +19,7 @@ export interface TooltipView {
   readonly element: HTMLElement;
   readonly body: HTMLElement;
   showLoading(reference: BibleReference): void;
-  showPassage(passage: Passage, original: BibleReference): void;
+  showPassage(passage: Passage, reference: BibleReference): void;
   showError(reference: BibleReference, onRetry: () => void): void;
   place(anchor: HTMLElement): void;
   setTheme(theme: ResolvedTooltipTheme): void;
@@ -36,7 +36,7 @@ const headerClassName = clsx(
   "br-tooltip-header",
   "flex shrink-0 items-center justify-between gap-3 px-3.5 py-2.5",
 );
-const titleClassName = clsx("br-tooltip-title", "text-base font-bold");
+const titleClassName = clsx("br-tooltip-title", "min-w-0 text-base font-bold break-words");
 const badgeClassName = clsx(
   "br-tooltip-badge",
   "rounded-sm px-1.5 text-xs font-bold tracking-wide",
@@ -78,10 +78,6 @@ function createElement<Name extends keyof HTMLElementTagNameMap>(
     element.textContent = text;
   }
   return element;
-}
-
-function verseCount(reference: BibleReference): number | null {
-  return reference.verseStart === null ? null : reference.verseEnd - reference.verseStart + 1;
 }
 
 /** Create the tooltip DOM and the operations that update its states. */
@@ -164,12 +160,8 @@ export function createTooltipView(document: Document, options: TooltipViewOption
       setFooter(reference, { verb: "Ler em", fallback: "Ler passagem" }, "Carregando passagem…");
     },
 
-    showPassage(passage, original) {
+    showPassage(passage, reference) {
       setState("ready");
-      const selected = passage.reference;
-      const shown = verseCount(selected);
-      const total = verseCount(original);
-      const truncated = shown !== null && total !== null && shown < total;
       const numbered = passage.verses.length > 1;
 
       body.replaceChildren(
@@ -186,17 +178,7 @@ export function createTooltipView(document: Document, options: TooltipViewOption
         }),
       );
 
-      if (truncated) {
-        body.append(createElement(document, "span", "br-truncated block", " …"));
-      }
-
-      setFooter(
-        original,
-        truncated
-          ? { verb: "Continuar em", fallback: "Continuar lendo" }
-          : { verb: "Ler em", fallback: "Ler passagem" },
-        truncated ? `${shown} de ${total} versículos` : translationName,
-      );
+      setFooter(reference, { verb: "Ler em", fallback: "Ler passagem" }, translationName);
     },
 
     showError(reference, onRetry) {

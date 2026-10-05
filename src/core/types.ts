@@ -1,19 +1,20 @@
 import type { BibleBookId } from "./books";
 
-interface BibleReferenceLocation {
-  readonly raw: string;
-  readonly bookId: BibleBookId;
-  readonly bookName: string;
-  readonly chapter: number;
+export interface VerseRange {
   readonly start: number;
   readonly end: number;
 }
 
-export type BibleReference = BibleReferenceLocation &
-  (
-    | { readonly verseStart: number; readonly verseEnd: number }
-    | { readonly verseStart: null; readonly verseEnd: null }
-  );
+export interface BibleReference {
+  readonly raw: string;
+  readonly bookId: BibleBookId;
+  readonly bookName: string;
+  readonly chapter: number;
+  /** Sorted, non-overlapping verse ranges. Empty when the reference is a whole chapter. */
+  readonly verseRanges: readonly VerseRange[];
+  readonly start: number;
+  readonly end: number;
+}
 
 export interface PassageVerse {
   readonly number: number;
