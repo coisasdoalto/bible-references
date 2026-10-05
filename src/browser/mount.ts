@@ -311,12 +311,17 @@ export function mountBibleReferences(
     document.addEventListener("keyup", () => (keyboardModality = false), captureOptions);
     document.addEventListener("pointerdown", () => (keyboardModality = false), captureOptions);
 
-    // A dialog closing hides its content without telling the tooltip inside it (its manual popover
-    // would stay in the top layer), so close the preview when the containing dialog closes.
+    // A dialog closing hides its content without telling the preview (a manual popover would stay
+    // in the top layer), so close it when the dialog that contains the tooltip or the active
+    // reference closes.
     document.addEventListener(
       "close",
       (event) => {
-        if (event.target instanceof Node && event.target.contains(tooltip)) {
+        const dialog = event.target;
+        if (
+          dialog instanceof Node &&
+          (dialog.contains(tooltip) || (activeLink !== null && dialog.contains(activeLink)))
+        ) {
           closeTooltip();
         }
       },

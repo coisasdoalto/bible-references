@@ -478,4 +478,21 @@ describe("mountBibleReferences", () => {
     expect(tooltip.hidden).toBe(true);
     handle.destroy();
   });
+
+  it("closes a body-mounted preview when the dialog with its reference closes", () => {
+    document.body.innerHTML = "<dialog id='dialog' open><p>Sl 1</p></dialog>";
+    const dialog = requireFixtureElement<HTMLElement>("#dialog");
+    const handle = mountBibleReferences(dialog, { provider: new FakeChapterProvider() });
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+    expect(tooltip.parentElement).toBe(document.body);
+    requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    expect(tooltip.hidden).toBe(false);
+
+    dialog.dispatchEvent(new Event("close"));
+
+    expect(tooltip.hidden).toBe(true);
+    handle.destroy();
+  });
 });
