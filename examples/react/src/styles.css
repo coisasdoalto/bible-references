@@ -1,0 +1,31 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+section {
+  margin-block: 2rem;
+}
+
+input[type="text"],
+input:not([type]) {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-block: 0.5rem;
+  padding: 0.5rem;
+}
+
+dialog {
+  max-width: 24rem;
+  padding: 1.5rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 0.75rem;
+}

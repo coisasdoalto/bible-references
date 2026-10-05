@@ -85,6 +85,8 @@ export function createTooltipView(document: Document, options: TooltipViewOption
   const root = createElement(document, "div", rootClassName);
   root.id = options.id;
   root.setAttribute("role", "tooltip");
+  // The tooltip can live inside the mounted root; keep its own text from being linked.
+  root.setAttribute("data-bible-references-ignore", "");
   root.dataset.brTheme = "light";
   root.dataset.brPlacement = "bottom";
   root.hidden = true;
@@ -228,19 +230,22 @@ export function createTooltipView(document: Document, options: TooltipViewOption
       );
 
       root.dataset.brPlacement = placement;
-      root.style.top = `${top}px`;
-      root.style.left = `${left}px`;
 
-      // A transformed or filtered ancestor becomes the containing block of fixed elements, so
-      // the tooltip can land away from the viewport coordinates computed above. Correct it.
-      const placed = root.getBoundingClientRect();
-      if (placed.width > 0 || placed.height > 0) {
-        root.style.top = `${top + (top - placed.top)}px`;
-        root.style.left = `${left + (left - placed.left)}px`;
-      }
+      // A transformed ancestor becomes the containing block of fixed elements and scales their
+      // coordinates. Measure where the origin lands and how much the ancestor scales, then
+      // convert the viewport coordinates into the tooltip's own coordinate space. Translation
+      // and scale are supported; rotation and skew are not.
+      root.style.top = "0px";
+      root.style.left = "0px";
+      const origin = root.getBoundingClientRect();
+      const scaleX = root.offsetWidth > 0 ? origin.width / root.offsetWidth : 1;
+      const scaleY = root.offsetHeight > 0 ? origin.height / root.offsetHeight : 1;
+
+      root.style.top = `${(top - origin.top) / scaleY}px`;
+      root.style.left = `${(left - origin.left) / scaleX}px`;
       root.style.setProperty(
         "--br-arrow-x",
-        `${clamp(anchorCenter - left, ARROW_INSET, width - ARROW_INSET)}px`,
+        `${clamp(anchorCenter - left, ARROW_INSET, width - ARROW_INSET) / scaleX}px`,
       );
     },
   };

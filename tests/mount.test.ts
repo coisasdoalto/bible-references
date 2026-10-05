@@ -297,4 +297,92 @@ describe("mountBibleReferences", () => {
     handle.destroy();
     expect(document.querySelector(".br-tooltip")).toBeNull();
   });
+
+  it("places the tooltip correctly inside a translated and scaled ancestor", () => {
+    document.body.innerHTML = "<div id='modal'><p>Sl 1</p></div>";
+    const container = requireFixtureElement<HTMLElement>("#modal");
+    // Simulate transform: translate(100px, 50px) scale(0.5) on the container.
+    const rectOf = (left: number, top: number, width: number, height: number) =>
+      ({
+        left,
+        top,
+        right: left + width,
+        bottom: top + height,
+        width,
+        height,
+        x: left,
+        y: top,
+      }) as DOMRect;
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains("br-tooltip")) {
+          const left = Number.parseFloat(this.style.left) || 0;
+          const top = Number.parseFloat(this.style.top) || 0;
+          return rectOf(100 + left * 0.5, 50 + top * 0.5, 200, 50);
+        }
+        return this.classList.contains("br-reference")
+          ? rectOf(300, 200, 40, 20)
+          : rectOf(0, 0, 0, 0);
+      });
+    const widthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetWidth");
+    const heightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+    const layoutSize = (width: number, height: number) => {
+      Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains("br-tooltip") ? width : 0;
+        },
+      });
+      Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains("br-tooltip") ? height : 0;
+        },
+      });
+    };
+    layoutSize(400, 100);
+
+    const handle = mountBibleReferences(container, {
+      provider: new FakeChapterProvider(),
+      container,
+    });
+    requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+
+    // Wanted viewport position: left = 320 - 200 / 2 = 220, top = 220 + 12 = 232.
+    expect(Number.parseFloat(tooltip.style.left)).toBeCloseTo((220 - 100) / 0.5);
+    expect(Number.parseFloat(tooltip.style.top)).toBeCloseTo((232 - 50) / 0.5);
+
+    handle.destroy();
+    rectSpy.mockRestore();
+    if (widthDescriptor)
+      Object.defineProperty(HTMLElement.prototype, "offsetWidth", widthDescriptor);
+    if (heightDescriptor)
+      Object.defineProperty(HTMLElement.prototype, "offsetHeight", heightDescriptor);
+  });
+
+  it("does not link references inside its own tooltip when refreshed", async () => {
+    document.body.innerHTML = "<div id='root'><p>Sl 23</p></div>";
+    const root = requireFixtureElement<HTMLElement>("#root");
+    const handle = mountBibleReferences(root, {
+      provider: new FakeChapterProvider(),
+      container: root,
+    });
+    requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+    await vi.waitFor(() =>
+      expect(document.querySelector(".br-tooltip")?.getAttribute("data-br-state")).toBe("ready"),
+    );
+
+    handle.refresh();
+
+    expect(document.querySelectorAll(".br-tooltip .br-reference")).toHaveLength(0);
+    expect(document.querySelector(".br-tooltip-title")?.textContent).toBe("Salmos 23");
+    expect(document.querySelectorAll(".br-reference")).toHaveLength(1);
+    handle.destroy();
+  });
 });
