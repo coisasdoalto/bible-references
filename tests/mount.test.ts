@@ -414,6 +414,19 @@ describe("mountBibleReferences", () => {
     link.focus();
     expect(tooltip.hidden).toBe(true);
 
+    // Enter on a dialog opener, then the dialog focusing its first control: not navigation.
+    link.blur();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    link.focus();
+    expect(tooltip.hidden).toBe(true);
+
+    // The flag does not outlive the key press.
+    link.blur();
+    pressTab();
+    document.dispatchEvent(new KeyboardEvent("keyup", { key: "Tab" }));
+    link.focus();
+    expect(tooltip.hidden).toBe(true);
+
     link.blur();
     pressTab();
     link.focus();

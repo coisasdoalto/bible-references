@@ -300,9 +300,15 @@ export function mountBibleReferences(
       { ...listenerOptions, capture: true, passive: true },
     );
 
-    // Track whether the last input came from the keyboard, to tell Tab from programmatic focus.
+    // Only Tab navigation counts as keyboard focus. Other keys (Enter opening a dialog that then
+    // focuses its first control) must not, and the flag is cleared as soon as the key is released.
     const captureOptions = { ...listenerOptions, capture: true, passive: true };
-    document.addEventListener("keydown", () => (keyboardModality = true), captureOptions);
+    document.addEventListener(
+      "keydown",
+      (event) => (keyboardModality = event.key === "Tab"),
+      captureOptions,
+    );
+    document.addEventListener("keyup", () => (keyboardModality = false), captureOptions);
     document.addEventListener("pointerdown", () => (keyboardModality = false), captureOptions);
 
     // Taps outside do not reliably emit mouseleave/blur on touch devices.
