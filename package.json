@@ -1,6 +1,6 @@
 {
   "name": "@coisasdoalto/bible-references",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Detect Bible references in web text and turn them into links with optional passage previews.",
   "type": "module",
   "license": "MIT",
