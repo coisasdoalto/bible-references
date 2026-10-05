@@ -3,12 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:local": "bun run --cwd ../.. build && BIBLE_REFERENCES_LOCAL=1 vite --force",
-    "build": "vite build"
+    "dev": "bun run --cwd ../.. build && vite",
+    "build": "bun run --cwd ../.. build && vite build"
   },
   "dependencies": {
-    "@coisasdoalto/bible-references": "0.2.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

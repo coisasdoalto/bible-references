@@ -2,7 +2,7 @@
 
 ## Project
 
-`@coisasdoalto/bible-references` is a browser-first TypeScript library that will detect Bible references in text, turn them into links, and optionally render passage previews in tooltips. Vanilla HTML/DOM support comes first; React support will be an adapter over the same core parser and normalized reference model.
+`@coisasdoalto/bible-references` is a browser-first TypeScript library that will detect Bible references in text, turn them into links, and optionally render passage previews in tooltips. Vanilla HTML/DOM support comes first; React support is a thin wrapper (`src/react`, exported as `@coisasdoalto/bible-references/react`): `BibleReferencesProvider` renders a `display: contents` element and runs `mountBibleReferences` on it with `observe`.
 
 The repository now has an initial MVP with a PT-BR parser, normalized reference model, DOM integration, tooltip previews, and a provisional biblias.app HTTP provider (ACF translation). Keep the core independent from provider and framework details as the API evolves.
 

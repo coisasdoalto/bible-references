@@ -1,22 +1,20 @@
-import clsx from "clsx/lite";
+import { parseBibleReferences } from "../core/parser";
+import type { BibleReference, PassageProvider } from "../core/types";
+import { createBibliasAppPassageProvider } from "../providers/biblias.app";
+import { createPreviewController } from "./preview";
+import { createReferenceLink, resolveGetHref } from "./reference-link";
+import type { LinkOpenIn, TooltipTheme } from "./tooltip";
 
-import { bibleReferenceKey, parseBibleReferences } from "../core/parser";
-import type { BibleReference, Passage, PassageProvider } from "../core/types";
-import { buildBibliasAppReadUrl, createBibliasAppPassageProvider } from "../providers/biblias.app";
-import { createTooltipView, type LinkOpenIn, type TooltipTheme } from "./tooltip";
-
+const ELEMENT_NODE = 1;
+const TEXT_NODE = 3;
+const DOCUMENT_NODE = 9;
+const DOCUMENT_FRAGMENT_NODE = 11;
 const SHOW_TEXT = 4;
 const FILTER_ACCEPT = 1;
 const FILTER_REJECT = 2;
 
 const IGNORED_ANCESTORS =
   "script,style,code,pre,textarea,input,select,option,a,button,[contenteditable],[data-bible-references-ignore]";
-
-const referenceClassName = clsx(
-  "br-reference",
-  "cursor-help underline decoration-dotted underline-offset-2",
-  "focus-visible:outline-2 focus-visible:outline-offset-2",
-);
 
 export interface MountBibleReferencesOptions {
   readonly provider?: PassageProvider;
@@ -30,6 +28,17 @@ export interface MountBibleReferencesOptions {
   readonly container?: HTMLElement;
   /** Where the tooltip footer link opens. Defaults to "new-tab". */
   readonly openIn?: LinkOpenIn;
+  /**
+   * CSS selector of the elements to search, inside the root. Only text within a matching element
+   * is linked, so the rest of the page is never read. Without it the whole root is searched.
+   * Changing an element's attributes later does not rescan it; call `refresh()`.
+   */
+  readonly selector?: string;
+  /**
+   * Keep watching the root and link references in content added or changed after mounting. Also
+   * cleans up when the content is removed or rewritten by a framework. Defaults to false.
+   */
+  readonly observe?: boolean;
 }
 
 export interface BibleReferencesHandle {
@@ -37,18 +46,21 @@ export interface BibleReferencesHandle {
   destroy(): void;
 }
 
-interface LinkState {
-  hovered: boolean;
-  focused: boolean;
+/**
+ * A text node that was split around its references. The original node stays in the DOM holding
+ * the text before the first reference, so a framework that owns it keeps working: when it
+ * rewrites or removes the node, the generated nodes after it are cleaned up.
+ */
+interface SplitText {
+  readonly original: string;
+  /** The text this mount left in the original node. */
+  readonly prefix: string;
+  readonly nodes: Node[];
+  readonly unbinds: Array<() => void>;
 }
 
-/** Scroll events right after opening are ignored: focusing a link can scroll it into view. */
-const SCROLL_CLOSE_GRACE_MS = 150;
-
-let tooltipSequence = 0;
-
 function getDocument(root: ParentNode): Document {
-  if ((root as Node).nodeType === 9) {
+  if ((root as Node).nodeType === DOCUMENT_NODE) {
     return root as Document;
   }
 
@@ -60,9 +72,9 @@ function getDocument(root: ParentNode): Document {
   return document;
 }
 
-function shouldIgnoreTextNode(node: Text): boolean {
-  const parent = node.parentElement;
-  return parent === null || parent.closest(IGNORED_ANCESTORS) !== null;
+function isInsideIgnored(node: Node): boolean {
+  const element = node.nodeType === ELEMENT_NODE ? (node as Element) : node.parentElement;
+  return element !== null && element.closest(IGNORED_ANCESTORS) !== null;
 }
 
 /** Link references and display passage previews. Example: mountBibleReferences(document.body). */
@@ -71,335 +83,157 @@ export function mountBibleReferences(
   options: MountBibleReferencesOptions = {},
 ): BibleReferencesHandle {
   const document = getDocument(root);
+  const rootNode = root as Node;
+  const { selector } = options;
+
+  if (selector !== undefined) {
+    // Fail before anything is created when the selector is invalid.
+    document.createDocumentFragment().querySelector(selector);
+  }
+
   const provider = options.provider ?? createBibliasAppPassageProvider();
-  const getHref =
-    options.getHref ??
-    ((reference: BibleReference) =>
-      provider.source?.getUrl(reference) ?? buildBibliasAppReadUrl(reference));
-  const preview = options.preview ?? true;
+  const getHref = resolveGetHref(provider, options.getHref);
 
-  const eventController = new AbortController();
-  const requestControllers = new Set<AbortController>();
-  const cache = new Map<string, Passage>();
-  const generatedLinks = new Set<HTMLAnchorElement>();
-  const states = new WeakMap<HTMLAnchorElement, LinkState>();
-
-  const view = createTooltipView(document, {
-    id: `br-tooltip-${++tooltipSequence}`,
-    translation: provider.translation,
-    source: provider.source,
+  const controller = createPreviewController({
+    document,
+    provider,
+    getHref,
+    preview: options.preview ?? true,
+    theme: options.theme ?? "auto",
+    container: options.container,
     openIn: options.openIn ?? "new-tab",
-    getFallbackHref: getHref,
   });
-  const tooltip = view.element;
-  (options.container ?? document.body ?? document.documentElement).append(tooltip);
+  const splits = new Map<Text, SplitText>();
+  // Nodes this mount created or split: never searched again.
+  const owned = new WeakSet<Node>();
+  let observer: MutationObserver | undefined;
+  // Host rewrites of split nodes that arrived while only `refresh()` is looking (no `observe`).
+  const rewritten: MutationRecord[] = [];
+  let destroyed = false;
 
-  const theme = options.theme ?? "auto";
-  const colorScheme =
-    theme === "auto" ? document.defaultView?.matchMedia?.("(prefers-color-scheme: dark)") : null;
-  if (colorScheme) {
-    view.setTheme(colorScheme.matches ? "dark" : "light");
-    colorScheme.addEventListener(
-      "change",
-      (event) => view.setTheme(event.matches ? "dark" : "light"),
-      { signal: eventController.signal },
-    );
-  } else if (theme !== "auto") {
-    view.setTheme(theme);
+  function findSelectorMatch(element: Element): Element | null {
+    const match = selector === undefined ? null : element.closest(selector);
+    // The nearest match can be an ancestor above the root, which is outside the search area.
+    return match !== null && rootNode.contains(match) ? match : null;
   }
 
-  let activeLink: HTMLAnchorElement | null = null;
-  let tooltipHovered = false;
-  let tooltipFocused = false;
-  let openedAt = 0;
-  let keyboardModality = false;
-  let hideTimeout: ReturnType<typeof setTimeout> | undefined;
-
-  function closeTooltip(): void {
-    clearTimeout(hideTimeout);
-    const link = activeLink;
-    if (!link) {
-      return;
-    }
-
-    const state = states.get(link);
-    if (state) {
-      state.hovered = false;
-      state.focused = false;
-    }
-    link.removeAttribute("aria-describedby");
-    tooltipHovered = false;
-    tooltipFocused = false;
-    activeLink = null;
-    view.close();
-  }
-
-  function hideTooltip(link: HTMLAnchorElement): void {
-    const state = states.get(link);
-    if (
-      !state ||
-      state.hovered ||
-      state.focused ||
-      tooltipHovered ||
-      tooltipFocused ||
-      activeLink !== link
-    ) {
-      return;
-    }
-
-    link.removeAttribute("aria-describedby");
-    activeLink = null;
-    view.close();
-  }
-
-  function scheduleTooltipHide(link: HTMLAnchorElement): void {
-    clearTimeout(hideTimeout);
-    hideTimeout = setTimeout(() => hideTooltip(link), 150);
-  }
-
-  async function showTooltip(link: HTMLAnchorElement, reference: BibleReference): Promise<void> {
-    if (!preview) {
-      return;
-    }
-
-    activeLink = link;
-    openedAt = performance.now();
-    clearTimeout(hideTimeout);
-    link.setAttribute("aria-describedby", tooltip.id);
-    view.open();
-    view.showLoading(reference);
-    view.place(link);
-
-    const key = bibleReferenceKey(reference);
-    const cached = cache.get(key);
-
-    if (cached) {
-      view.showPassage(cached, reference);
-      view.place(link);
-      return;
-    }
-
-    const controller = new AbortController();
-    requestControllers.add(controller);
-
-    try {
-      const passage = await provider.getPassage(reference, controller.signal);
-      cache.set(key, passage);
-
-      if (activeLink === link) {
-        view.showPassage(passage, reference);
-        view.place(link);
-      }
-    } catch {
-      if (!controller.signal.aborted && activeLink === link) {
-        view.showError(reference, () => void showTooltip(link, reference));
-        view.place(link);
-      }
-    } finally {
-      requestControllers.delete(controller);
-    }
-  }
-
-  function bindLink(link: HTMLAnchorElement, reference: BibleReference): void {
-    const state: LinkState = { hovered: false, focused: false };
-    states.set(link, state);
-    link.addEventListener(
-      "keydown",
-      (event) => {
-        if (event.key === "ArrowDown" && activeLink === link && !tooltip.hidden) {
-          event.preventDefault();
-          view.body.focus();
-        }
-        handleTooltipKeys(event);
-      },
-      { signal: eventController.signal },
-    );
-
-    // The reference never navigates: a click or tap opens the preview instead.
-    link.addEventListener(
-      "click",
-      (event) => {
-        event.preventDefault();
-        void showTooltip(link, reference);
-      },
-      { signal: eventController.signal },
-    );
-
-    link.addEventListener(
-      "mouseenter",
-      () => {
-        state.hovered = true;
-        void showTooltip(link, reference);
-      },
-      { signal: eventController.signal },
-    );
-
-    link.addEventListener(
-      "mouseleave",
-      () => {
-        state.hovered = false;
-        scheduleTooltipHide(link);
-      },
-      { signal: eventController.signal },
-    );
-
-    link.addEventListener(
-      "focus",
-      () => {
-        state.focused = true;
-        // Programmatic focus (a dialog focusing its first control, an autofocus) is not a request
-        // for a preview; only keyboard navigation opens it on focus.
-        if (keyboardModality) {
-          void showTooltip(link, reference);
-        }
-      },
-      { signal: eventController.signal },
-    );
-
-    link.addEventListener(
-      "blur",
-      () => {
-        state.focused = false;
-        scheduleTooltipHide(link);
-      },
-      { signal: eventController.signal },
-    );
-  }
-
-  function handleTooltipKeys(event: KeyboardEvent): void {
-    if (event.key !== "Escape" || !activeLink) {
-      return;
-    }
-    activeLink.focus();
-    closeTooltip();
-  }
-
-  function isInsideTooltipOrReference(target: EventTarget | null): boolean {
-    if (!(target instanceof Element)) {
+  /** Whether a text node is in a place this mount reads, ignoring whether it already split it. */
+  function isReadable(node: Text): boolean {
+    const parent = node.parentElement;
+    if (parent === null || parent.closest(IGNORED_ANCESTORS) !== null) {
       return false;
     }
-    const link = target.closest("a");
-    return tooltip.contains(target) || (link !== null && generatedLinks.has(link));
+
+    return selector === undefined || findSelectorMatch(parent) !== null;
   }
 
-  function bindDismissEvents(): void {
-    const listenerOptions = { signal: eventController.signal };
-
-    // Scroll events do not bubble, so listen in the capture phase to catch any scroll container.
-    document.defaultView?.addEventListener(
-      "scroll",
-      (event) => {
-        if (
-          activeLink &&
-          !(event.target instanceof Node && tooltip.contains(event.target)) &&
-          performance.now() - openedAt > SCROLL_CLOSE_GRACE_MS
-        ) {
-          closeTooltip();
-        }
-      },
-      { ...listenerOptions, capture: true, passive: true },
-    );
-
-    // Only Tab navigation counts as keyboard focus. Other keys (Enter opening a dialog that then
-    // focuses its first control) must not, and the flag is cleared as soon as the key is released.
-    const captureOptions = { ...listenerOptions, capture: true, passive: true };
-    document.addEventListener(
-      "keydown",
-      (event) => (keyboardModality = event.key === "Tab"),
-      captureOptions,
-    );
-    document.addEventListener("keyup", () => (keyboardModality = false), captureOptions);
-    document.addEventListener("pointerdown", () => (keyboardModality = false), captureOptions);
-
-    // A dialog closing hides its content without telling the preview (a manual popover would stay
-    // in the top layer), so close it when the dialog that contains the tooltip or the active
-    // reference closes.
-    document.addEventListener(
-      "close",
-      (event) => {
-        const dialog = event.target;
-        if (
-          dialog instanceof Node &&
-          (dialog.contains(tooltip) || (activeLink !== null && dialog.contains(activeLink)))
-        ) {
-          closeTooltip();
-        }
-      },
-      captureOptions,
-    );
-
-    // Taps outside do not reliably emit mouseleave/blur on touch devices.
-    document.addEventListener(
-      "pointerdown",
-      (event) => {
-        if (activeLink && !isInsideTooltipOrReference(event.target)) {
-          closeTooltip();
-        }
-      },
-      listenerOptions,
-    );
+  function isEligible(node: Text): boolean {
+    return !owned.has(node) && isReadable(node);
   }
 
-  function updateTooltipInteraction(event: Event): void {
-    if (event.type === "mouseenter" || event.type === "mouseleave") {
-      tooltipHovered = event.type === "mouseenter";
-    } else if (event.type === "focusin") {
-      tooltipFocused = true;
-    } else {
-      const next = (event as FocusEvent).relatedTarget;
-      tooltipFocused = next instanceof Node && tooltip.contains(next);
+  /** The parts of a node to walk: the node itself, or only the elements matching the selector. */
+  function regionsWithin(node: Node): Node[] {
+    if (node.nodeType === TEXT_NODE) {
+      return [node];
     }
-    if (activeLink && !tooltipHovered && !tooltipFocused) {
-      scheduleTooltipHide(activeLink);
+    if (
+      node.nodeType !== ELEMENT_NODE &&
+      node.nodeType !== DOCUMENT_NODE &&
+      node.nodeType !== DOCUMENT_FRAGMENT_NODE
+    ) {
+      return [];
     }
+    if (
+      selector === undefined ||
+      (node.nodeType === ELEMENT_NODE && findSelectorMatch(node as Element))
+    ) {
+      return [node];
+    }
+
+    const regions: Element[] = [];
+    for (const match of (node as ParentNode).querySelectorAll(selector)) {
+      // Matches come in document order, so a nested match follows the region that contains it.
+      if (!regions.at(-1)?.contains(match)) {
+        regions.push(match);
+      }
+    }
+    return regions;
   }
 
-  function bindTooltipEvents(): void {
-    const listenerOptions = { signal: eventController.signal };
-    for (const eventName of ["mouseenter", "mouseleave", "focusin", "focusout"] as const) {
-      tooltip.addEventListener(eventName, updateTooltipInteraction, listenerOptions);
-    }
-    tooltip.addEventListener("keydown", handleTooltipKeys, listenerOptions);
-  }
-
-  function replaceTextNode(node: Text): void {
+  function splitText(node: Text): void {
     const text = node.data;
     const references = parseBibleReferences(text);
-    if (references.length === 0) {
+    const first = references[0];
+    if (first === undefined) {
       return;
     }
 
-    const fragment = document.createDocumentFragment();
-    let cursor = 0;
+    const nodes: Node[] = [];
+    const unbinds: Array<() => void> = [];
+    let cursor = first.start;
 
     for (const reference of references) {
       if (reference.start > cursor) {
-        fragment.append(document.createTextNode(text.slice(cursor, reference.start)));
+        nodes.push(document.createTextNode(text.slice(cursor, reference.start)));
       }
 
-      const link = document.createElement("a");
-      link.href = getHref(reference);
-      link.className = referenceClassName;
-      link.dataset.brReference = bibleReferenceKey(reference);
-      link.textContent = reference.raw;
-
-      generatedLinks.add(link);
-      bindLink(link, reference);
-      fragment.append(link);
+      const link = createReferenceLink(document, reference, getHref);
+      unbinds.push(controller.bind(link, reference));
+      nodes.push(link);
       cursor = reference.end;
     }
 
     if (cursor < text.length) {
-      fragment.append(document.createTextNode(text.slice(cursor)));
+      nodes.push(document.createTextNode(text.slice(cursor)));
     }
 
-    node.replaceWith(fragment);
+    for (const created of nodes) {
+      owned.add(created);
+    }
+    owned.add(node);
+    const prefix = text.slice(0, first.start);
+    splits.set(node, { original: text, prefix, nodes, unbinds });
+
+    node.after(...nodes);
+    node.data = prefix;
+    if (!options.observe) {
+      // Without observe, still notice the host writing to this node, even the same text.
+      observer?.observe(node, { characterData: true });
+    }
   }
 
-  function refresh(): void {
-    const walker = document.createTreeWalker(root as Node, SHOW_TEXT, {
+  /** Remove what was generated for a node. `restore` puts its original text back. */
+  function unsplit(node: Text, restore: boolean): void {
+    const split = splits.get(node);
+    if (!split) {
+      return;
+    }
+
+    splits.delete(node);
+    owned.delete(node);
+    for (const unbind of split.unbinds) {
+      unbind();
+    }
+    for (const generated of split.nodes) {
+      owned.delete(generated);
+      generated.parentNode?.removeChild(generated);
+    }
+    if (restore) {
+      node.data = split.original;
+    }
+  }
+
+  function scan(region: Node): void {
+    if (region.nodeType === TEXT_NODE) {
+      if (isEligible(region as Text)) {
+        splitText(region as Text);
+      }
+      return;
+    }
+
+    const walker = document.createTreeWalker(region, SHOW_TEXT, {
       acceptNode(node) {
-        return shouldIgnoreTextNode(node as Text) ? FILTER_REJECT : FILTER_ACCEPT;
+        return isEligible(node as Text) ? FILTER_ACCEPT : FILTER_REJECT;
       },
     });
 
@@ -412,33 +246,128 @@ export function mountBibleReferences(
     }
 
     for (const node of nodes) {
-      replaceTextNode(node);
+      splitText(node);
     }
   }
 
-  bindTooltipEvents();
-  bindDismissEvents();
+  /** Whether the generated nodes still follow their original node, in order. */
+  function followsOriginal(node: Text, split: SplitText): boolean {
+    let next = node.nextSibling;
+    for (const generated of split.nodes) {
+      if (generated !== next) {
+        return false;
+      }
+      next = next.nextSibling;
+    }
+    return true;
+  }
+
+  /**
+   * Undo the splits the host broke, whether or not anything was observed: the node left the
+   * root, was rewritten, or was moved away from its generated nodes. Nodes that need another
+   * look are added to `rescan`. With `recheckLocation`, a split node that is no longer in a place
+   * this mount reads (its element stopped matching the selector, or became ignored) is undone too.
+   */
+  function reconcile(
+    records: readonly MutationRecord[],
+    rescan: Set<Node>,
+    recheckLocation = false,
+  ): void {
+    for (const record of records) {
+      if (record.type === "characterData" && splits.has(record.target as Text)) {
+        // The host rewrote a split node: its text is now the whole new text.
+        unsplit(record.target as Text, false);
+        rescan.add(record.target);
+      }
+    }
+
+    for (const [node, split] of [...splits]) {
+      if (!rootNode.contains(node)) {
+        // Back to its original text, so it is linked again if it returns.
+        unsplit(node, true);
+      } else if (node.data !== split.prefix) {
+        unsplit(node, false);
+        rescan.add(node);
+      } else if (!followsOriginal(node, split)) {
+        // Moved without the generated nodes: its text is the prefix, so restore the whole text.
+        unsplit(node, true);
+        rescan.add(node);
+      } else if (recheckLocation && !isReadable(node)) {
+        unsplit(node, true);
+      }
+    }
+  }
+
+  function handleRecords(records: readonly MutationRecord[]): void {
+    const rescan = new Set<Node>();
+    reconcile(records, rescan);
+
+    for (const record of records) {
+      for (const added of record.addedNodes) {
+        rescan.add(added);
+      }
+      if (record.type === "characterData") {
+        rescan.add(record.target);
+      }
+    }
+
+    for (const node of rescan) {
+      if (rootNode.contains(node) && !isInsideIgnored(node)) {
+        for (const region of regionsWithin(node)) {
+          scan(region);
+        }
+      }
+    }
+  }
+
+  function takePendingRecords(): MutationRecord[] {
+    return [...rewritten.splice(0), ...(observer?.takeRecords() ?? [])];
+  }
+
+  function refresh(): void {
+    if (destroyed) {
+      return;
+    }
+
+    // Settle what the host did since the last scan; the full scan below covers the rest.
+    reconcile(takePendingRecords(), new Set(), true);
+    for (const region of regionsWithin(rootNode)) {
+      scan(region);
+    }
+    // Drop the records of this mount's own changes.
+    observer?.takeRecords();
+  }
+
+  const ObserverConstructor = document.defaultView?.MutationObserver;
+  if (ObserverConstructor) {
+    observer = new ObserverConstructor((records) => {
+      if (options.observe) {
+        handleRecords(records);
+      } else {
+        rewritten.push(...records.filter((record) => record.type === "characterData"));
+      }
+      // Drop the records of this mount's own changes.
+      observer?.takeRecords();
+    });
+  }
+
   refresh();
+
+  if (options.observe) {
+    observer?.observe(rootNode, { childList: true, subtree: true, characterData: true });
+  }
 
   return {
     refresh,
     destroy() {
-      clearTimeout(hideTimeout);
-      eventController.abort();
-
-      for (const controller of requestControllers) {
-        controller.abort();
+      destroyed = true;
+      // Keep the host's pending edits: only the splits that are still intact get their text back.
+      reconcile(takePendingRecords(), new Set());
+      observer?.disconnect();
+      for (const node of [...splits.keys()]) {
+        unsplit(node, true);
       }
-      requestControllers.clear();
-
-      tooltip.remove();
-
-      for (const link of generatedLinks) {
-        if (link.isConnected) {
-          link.replaceWith(document.createTextNode(link.textContent ?? ""));
-        }
-      }
-      generatedLinks.clear();
+      controller.destroy();
     },
   };
 }

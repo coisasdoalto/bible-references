@@ -4,17 +4,12 @@
   "workspaces": {
     "": {
       "name": "@coisasdoalto/bible-references-example-vanilla",
-      "dependencies": {
-        "@coisasdoalto/bible-references": "0.2.0",
-      },
       "devDependencies": {
         "vite": "8.3.0",
       },
     },
   },
   "packages": {
-    "@coisasdoalto/bible-references": ["@coisasdoalto/bible-references@0.2.0", "https://npm.pkg.github.com/download/@coisasdoalto/bible-references/0.2.0/c38e430dfbf86fa8eba80ec05314c4887e21a417", {}, "sha512-jbe26UQwTAOcY8qUB0yz28rmqU1bBAkJzsqzTzUVFYqL6OtjSjPzOhkiEpmOCL5VIV9j3OASsmJz1LH4MVbiAA=="],
-
     "@oxc-project/types": ["@oxc-project/types@0.152.0", "", {}, "sha512-oM/5rLBm2tPkg0iBgkH/FOeR3PCDpY19GTgAZjMFM8h9WI9VW7cLgzp6nwtarYKmovavIQZ+Fe/RKX/8C8O/Rw=="],
 
     "@rolldown/binding-android-arm-eabi": ["@rolldown/binding-android-arm-eabi@1.2.12", "", { "os": "android", "cpu": "arm" }, "sha512-dB/a1214qKfHMXCpgqR4OZT+jS4kTyEXbQGJPqzobt5EwH5rX080pxE37alt3RzvR1bf1Yz/yGqRfrYAxuPw0A=="],

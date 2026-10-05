@@ -499,3 +499,394 @@ describe("mountBibleReferences", () => {
     handle.destroy();
   });
 });
+
+/** Let MutationObserver callbacks run. */
+const settle = () => new Promise<void>((resolve) => setTimeout(resolve));
+
+function referenceTexts(): string[] {
+  return [...document.querySelectorAll(".br-reference")].map((link) => link.textContent ?? "");
+}
+
+describe("mountBibleReferences selector", () => {
+  it("only searches inside the matching elements", () => {
+    document.body.innerHTML = `
+      <nav id="outside">Sl 1</nav>
+      <article class="bible" id="a"><p>Rm 1:1 <span>e Sl 23</span></p></article>
+      <aside>Jo 3:16</aside>
+    `;
+
+    const handle = mountBibleReferences(document.body, { preview: false, selector: ".bible" });
+
+    expect(referenceTexts()).toEqual(["Rm 1:1", "Sl 23"]);
+    expect(requireFixtureElement("#outside").querySelector(".br-reference")).toBeNull();
+    handle.destroy();
+  });
+
+  it("does not process nested matches twice", () => {
+    document.body.innerHTML = `<div class="x"><div class="x">Rm 1:1</div> e <div class="x">Sl 23</div></div>`;
+
+    const handle = mountBibleReferences(document.body, { preview: false, selector: ".x" });
+
+    expect(referenceTexts()).toEqual(["Rm 1:1", "Sl 23"]);
+    handle.destroy();
+    expect(document.body.textContent).toBe("Rm 1:1 e Sl 23");
+  });
+
+  it("ignores a match that is an ancestor of the root", () => {
+    document.body.innerHTML = `<div class="bible"><section id="root">Rm 1:1</section></div>`;
+
+    const handle = mountBibleReferences(requireFixtureElement("#root"), {
+      preview: false,
+      selector: ".bible",
+    });
+
+    expect(referenceTexts()).toEqual([]);
+    handle.destroy();
+  });
+
+  it("still skips protected elements inside a match", () => {
+    document.body.innerHTML = `<div class="bible"><code>Rm 1:1</code> Sl 23</div>`;
+
+    const handle = mountBibleReferences(document.body, { preview: false, selector: ".bible" });
+
+    expect(referenceTexts()).toEqual(["Sl 23"]);
+    handle.destroy();
+  });
+
+  it("rejects an invalid selector before creating anything", () => {
+    document.body.innerHTML = "<p>Rm 1:1</p>";
+
+    expect(() => mountBibleReferences(document.body, { selector: "[" })).toThrow();
+    expect(document.querySelector(".br-tooltip")).toBeNull();
+    expect(referenceTexts()).toEqual([]);
+  });
+
+  it("unlinks content that stopped matching the selector on refresh", () => {
+    document.body.innerHTML = `<p class="bible" id="p">Leia Rm 1:1 agora</p>`;
+    const paragraph = requireFixtureElement("#p");
+    const handle = mountBibleReferences(document.body, { preview: false, selector: ".bible" });
+    expect(referenceTexts()).toEqual(["Rm 1:1"]);
+
+    paragraph.classList.remove("bible");
+    handle.refresh();
+
+    expect(referenceTexts()).toEqual([]);
+    expect(paragraph.textContent).toBe("Leia Rm 1:1 agora");
+    expect(paragraph.childNodes).toHaveLength(1);
+
+    paragraph.classList.add("bible");
+    handle.refresh();
+    expect(referenceTexts()).toEqual(["Rm 1:1"]);
+    handle.destroy();
+  });
+
+  it("unlinks content that became ignored on refresh", () => {
+    document.body.innerHTML = `<p id="p">Leia Rm 1:1 agora</p>`;
+    const paragraph = requireFixtureElement("#p");
+    const handle = mountBibleReferences(document.body, { preview: false });
+
+    paragraph.setAttribute("data-bible-references-ignore", "");
+    handle.refresh();
+
+    expect(referenceTexts()).toEqual([]);
+    expect(paragraph.textContent).toBe("Leia Rm 1:1 agora");
+    handle.destroy();
+  });
+
+  it("links matching elements added later and leaves the rest alone", async () => {
+    document.body.innerHTML = `<main id="main"></main>`;
+    const main = requireFixtureElement("#main");
+    const handle = mountBibleReferences(main, {
+      preview: false,
+      selector: ".bible",
+      observe: true,
+    });
+
+    main.insertAdjacentHTML("beforeend", `<p>Sl 1</p><div class="bible"><p>Sl 2</p></div>`);
+    await settle();
+    expect(referenceTexts()).toEqual(["Sl 2"]);
+
+    requireFixtureElement(".bible").append("e Sl 3");
+    await settle();
+    expect(referenceTexts()).toEqual(["Sl 2", "Sl 3"]);
+    handle.destroy();
+  });
+});
+
+describe("mountBibleReferences observe", () => {
+  it("does not react to changes by default", async () => {
+    document.body.innerHTML = `<div id="host"></div>`;
+    const host = requireFixtureElement("#host");
+    const handle = mountBibleReferences(host, { preview: false });
+
+    host.textContent = "Rm 1:1";
+    await settle();
+
+    expect(referenceTexts()).toEqual([]);
+    handle.destroy();
+  });
+
+  it("links content added after mounting", async () => {
+    document.body.innerHTML = `<div id="host"></div>`;
+    const host = requireFixtureElement("#host");
+    const handle = mountBibleReferences(host, { preview: false, observe: true });
+
+    host.innerHTML = "<p>Leia Rm 1:1.</p>";
+    await settle();
+    host.append("Veja Sl 23");
+    await settle();
+
+    expect(referenceTexts()).toEqual(["Rm 1:1", "Sl 23"]);
+    handle.destroy();
+  });
+
+  it("links a text node whose text changes in place", async () => {
+    document.body.innerHTML = `<p id="p">Sem referência</p>`;
+    const text = requireFixtureElement("#p").firstChild as Text;
+    const handle = mountBibleReferences(document.body, { preview: false, observe: true });
+
+    text.data = "Agora Rm 8:1";
+    await settle();
+
+    expect(referenceTexts()).toEqual(["Rm 8:1"]);
+    handle.destroy();
+  });
+
+  it("does not loop on its own changes", async () => {
+    document.body.innerHTML = `<p>Rm 1:1 e Sl 23</p>`;
+    const handle = mountBibleReferences(document.body, { preview: false, observe: true });
+    const before = document.body.innerHTML;
+
+    await settle();
+    await settle();
+
+    expect(document.body.innerHTML).toBe(before);
+    expect(referenceTexts()).toEqual(["Rm 1:1", "Sl 23"]);
+    handle.destroy();
+  });
+
+  it("leaves the tooltip and ignored areas alone", async () => {
+    document.body.innerHTML = `<div id="host"></div>`;
+    const host = requireFixtureElement("#host");
+    const handle = mountBibleReferences(host, {
+      provider: new FakeChapterProvider(),
+      observe: true,
+      container: host,
+    });
+
+    host.insertAdjacentHTML(
+      "beforeend",
+      `<div data-bible-references-ignore>Sl 1</div><code>Sl 2</code><p>Sl 3</p>`,
+    );
+    await settle();
+
+    expect(referenceTexts()).toEqual(["Sl 3"]);
+    handle.destroy();
+  });
+
+  it("unbinds links removed with their content and closes their tooltip", async () => {
+    document.body.innerHTML = `<div id="host"><p id="p">Sl 117</p></div>`;
+    const host = requireFixtureElement("#host");
+    const handle = mountBibleReferences(host, {
+      provider: new FakeChapterProvider(),
+      observe: true,
+    });
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+    requireFixtureElement(".br-reference").dispatchEvent(new MouseEvent("mouseenter"));
+    expect(tooltip.hidden).toBe(false);
+
+    requireFixtureElement("#p").remove();
+    await settle();
+
+    expect(tooltip.hidden).toBe(true);
+    handle.destroy();
+  });
+
+  it("links again content that is removed and put back", async () => {
+    document.body.innerHTML = `<div id="host"><p id="p">Sl 117</p></div>`;
+    const host = requireFixtureElement("#host");
+    const handle = mountBibleReferences(host, { preview: false, observe: true });
+    const paragraph = requireFixtureElement("#p");
+
+    paragraph.remove();
+    await settle();
+    expect(paragraph.textContent).toBe("Sl 117");
+    expect(paragraph.querySelector(".br-reference")).toBeNull();
+
+    host.append(paragraph);
+    await settle();
+    expect(referenceTexts()).toEqual(["Sl 117"]);
+    handle.destroy();
+  });
+
+  it("keeps links when the host moves content", async () => {
+    document.body.innerHTML = `<div id="host"><p id="a">Sl 1</p><p id="b">Sl 2</p></div>`;
+    const host = requireFixtureElement("#host");
+    const handle = mountBibleReferences(host, { preview: false, observe: true });
+
+    host.append(requireFixtureElement("#a"));
+    await settle();
+
+    expect(host.textContent).toBe("Sl 2Sl 1");
+    expect(referenceTexts()).toEqual(["Sl 2", "Sl 1"]);
+    handle.destroy();
+  });
+
+  it("stops observing after destroy", async () => {
+    document.body.innerHTML = `<div id="host"></div>`;
+    const host = requireFixtureElement("#host");
+    const handle = mountBibleReferences(host, { preview: false, observe: true });
+
+    handle.destroy();
+    host.textContent = "Rm 1:1";
+    await settle();
+    handle.refresh();
+
+    expect(referenceTexts()).toEqual([]);
+  });
+});
+
+describe("mountBibleReferences text ownership", () => {
+  it("settles removed content on refresh without observe", () => {
+    document.body.innerHTML = `<div id="host"><p id="p">Sl 117</p></div>`;
+    const host = requireFixtureElement("#host");
+    const handle = mountBibleReferences(host, { provider: new FakeChapterProvider() });
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+    requireFixtureElement(".br-reference").dispatchEvent(new MouseEvent("mouseenter"));
+    expect(tooltip.hidden).toBe(false);
+
+    host.innerHTML = "<p>Rm 1:1</p>";
+    handle.refresh();
+
+    expect(tooltip.hidden).toBe(true);
+    expect(referenceTexts()).toEqual(["Rm 1:1"]);
+    handle.destroy();
+  });
+
+  it("relinks a rewritten original node on refresh without observe", () => {
+    document.body.innerHTML = `<p id="p">Leia Rm 1:1 agora</p>`;
+    const text = requireFixtureElement("#p").firstChild as Text;
+    const handle = mountBibleReferences(document.body, { preview: false });
+
+    text.nodeValue = "Leia Sl 23 agora";
+    handle.refresh();
+
+    expect(requireFixtureElement("#p").textContent).toBe("Leia Sl 23 agora");
+    expect(referenceTexts()).toEqual(["Sl 23"]);
+    handle.destroy();
+  });
+
+  it("notices the host writing the same text to a split node on refresh without observe", async () => {
+    document.body.innerHTML = `<p id="p">Rm 1:1</p>`;
+    const text = requireFixtureElement("#p").firstChild as Text;
+    const handle = mountBibleReferences(document.body, { preview: false });
+    expect(referenceTexts()).toEqual(["Rm 1:1"]);
+
+    text.data = "";
+    handle.refresh();
+
+    expect(requireFixtureElement("#p").textContent).toBe("");
+    expect(referenceTexts()).toEqual([]);
+    handle.destroy();
+  });
+
+  it("keeps links across refreshes that follow its own changes", async () => {
+    document.body.innerHTML = `<p id="p">Leia Rm 1:1 agora</p>`;
+    const handle = mountBibleReferences(document.body, { preview: false });
+
+    await settle();
+    handle.refresh();
+    await settle();
+    handle.refresh();
+
+    expect(requireFixtureElement("#p").textContent).toBe("Leia Rm 1:1 agora");
+    expect(referenceTexts()).toEqual(["Rm 1:1"]);
+    handle.destroy();
+    expect(requireFixtureElement("#p").textContent).toBe("Leia Rm 1:1 agora");
+  });
+
+  it("relinks an original node that moves inside the root without its generated nodes", async () => {
+    document.body.innerHTML = `<p id="a">Leia Rm 1:1 agora</p><p id="b"></p>`;
+    const text = requireFixtureElement("#a").firstChild as Text;
+    const handle = mountBibleReferences(document.body, { preview: false, observe: true });
+
+    requireFixtureElement("#b").append(text);
+    await settle();
+
+    expect(requireFixtureElement("#a").textContent).toBe("");
+    expect(requireFixtureElement("#b").textContent).toBe("Leia Rm 1:1 agora");
+    expect(referenceTexts()).toEqual(["Rm 1:1"]);
+    expect(requireFixtureElement("#b").querySelector(".br-reference")).not.toBeNull();
+    handle.destroy();
+  });
+
+  it("keeps an edit made right before destroy", () => {
+    document.body.innerHTML = `<p id="p">Leia Rm 1:1 agora</p>`;
+    const text = requireFixtureElement("#p").firstChild as Text;
+    const handle = mountBibleReferences(document.body, { preview: false, observe: true });
+
+    text.nodeValue = "Texto novo";
+    handle.destroy();
+
+    expect(requireFixtureElement("#p").textContent).toBe("Texto novo");
+    expect(referenceTexts()).toEqual([]);
+  });
+
+  it("keeps the original text node and restores it on destroy", () => {
+    document.body.innerHTML = `<p id="p">Leia Rm 1:1 e Sl 23.</p>`;
+    const paragraph = requireFixtureElement("#p");
+    const original = paragraph.firstChild;
+
+    const handle = mountBibleReferences(document.body, { preview: false });
+
+    expect(paragraph.firstChild).toBe(original);
+    expect((original as Text).data).toBe("Leia ");
+    expect(paragraph.textContent).toBe("Leia Rm 1:1 e Sl 23.");
+
+    handle.destroy();
+
+    expect(paragraph.childNodes).toHaveLength(1);
+    expect(paragraph.firstChild).toBe(original);
+    expect((original as Text).data).toBe("Leia Rm 1:1 e Sl 23.");
+  });
+
+  it("relinks when a framework rewrites a text node it owns", async () => {
+    document.body.innerHTML = `<p id="p">Leia Rm 1:1 agora</p>`;
+    const text = requireFixtureElement("#p").firstChild as Text;
+    const handle = mountBibleReferences(document.body, { preview: false, observe: true });
+
+    text.nodeValue = "Leia Sl 23 agora";
+    await settle();
+
+    expect(requireFixtureElement("#p").textContent).toBe("Leia Sl 23 agora");
+    expect(referenceTexts()).toEqual(["Sl 23"]);
+    handle.destroy();
+  });
+
+  it("does not leave stale text when the rewrite equals the kept prefix", async () => {
+    document.body.innerHTML = `<p id="p">Leia Rm 1:1 agora</p>`;
+    const text = requireFixtureElement("#p").firstChild as Text;
+    const handle = mountBibleReferences(document.body, { preview: false, observe: true });
+
+    text.nodeValue = "Leia ";
+    await settle();
+
+    expect(requireFixtureElement("#p").textContent).toBe("Leia ");
+    expect(referenceTexts()).toEqual([]);
+    handle.destroy();
+  });
+
+  it("cleans up generated nodes when a framework removes the text node", async () => {
+    document.body.innerHTML = `<p id="p">Leia Rm 1:1 agora<b>fim</b></p>`;
+    const paragraph = requireFixtureElement("#p");
+    const text = paragraph.firstChild as Text;
+    const handle = mountBibleReferences(document.body, { preview: false, observe: true });
+
+    paragraph.removeChild(text);
+    await settle();
+
+    expect(paragraph.innerHTML).toBe("<b>fim</b>");
+    expect(referenceTexts()).toEqual([]);
+    handle.destroy();
+  });
+});

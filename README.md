@@ -2,7 +2,7 @@
 
 Uma pequena biblioteca web para detectar referências bíblicas em textos, transformá-las em links e, opcionalmente, exibir a passagem referenciada em um tooltip.
 
-O projeto está sendo desenvolvido primeiro para HTML independente de framework, com uma integração dedicada para React planejada sobre o mesmo parser e modelo central.
+O projeto está sendo desenvolvido primeiro para HTML independente de framework, com uma integração para React que é um wrapper sobre a mesma camada DOM.
 
 ## Status
 
@@ -16,6 +16,8 @@ O primeiro MVP já está implementado. Ele inclui:
 - tooltip por hover e foco;
 - intervalos e listas de versículos (`Sl 119:1-20,29,32,34,37-40`) sem limite de versículos no preview;
 - capítulos inteiros em tooltips com rolagem por mouse ou teclado;
+- `selector` para buscar só em partes da página e `observe` para conteúdo dinâmico;
+- integração com React (`@coisasdoalto/bible-references/react`), um wrapper sobre a camada DOM;
 - provider HTTP para a API do biblias.app (tradução ACF);
 - testes de parser, provider e DOM.
 
@@ -63,12 +65,33 @@ const bibleReferences = mountBibleReferences(document.body, {
   },
 });
 
-// Para conteúdo inserido posteriormente:
+// Para varrer de novo manualmente (por exemplo, depois de mudar atributos):
 bibleReferences.refresh();
 
 // Remove listeners/tooltips e restaura o texto dos links criados:
 bibleReferences.destroy();
 ```
+
+#### Onde procurar e conteúdo dinâmico
+
+Por padrão, a biblioteca lê todo o texto dentro do elemento informado. Com `selector`, só o texto dentro de elementos que casam com o seletor é lido, e o resto da página não é tocado:
+
+```ts
+mountBibleReferences(document.body, { selector: "article, .comment" });
+```
+
+O `selector` só restringe a busca dentro do elemento informado: um elemento que casa fora dele não conta. Um seletor inválido lança um erro no `mountBibleReferences`. Mudar os atributos de um elemento depois (por exemplo, adicionar uma classe) não o faz ser lido; chame `refresh()`.
+
+Com `observe: true`, a biblioteca continua observando o elemento (`MutationObserver`) e liga as referências em conteúdo adicionado ou alterado depois, sem chamar `refresh()`. Ela também desfaz os links quando o conteúdo é removido ou reescrito por outro código. `observe` e `selector` combinam: elementos que casam e aparecem depois também são lidos.
+
+```ts
+const bibleReferences = mountBibleReferences(document.querySelector("#app")!, {
+  selector: ".bible",
+  observe: true,
+});
+```
+
+Para ligar uma referência, o nó de texto original continua no DOM com o trecho antes da primeira referência, e os links e o restante do texto entram logo depois dele. Por isso um framework que mantém referência ao nó (React, por exemplo) pode atualizá-lo ou removê-lo sem erro, desde que `observe` esteja ligado: a biblioteca refaz os links a partir do novo texto. Sem `observe`, o texto novo só é lido em um `refresh()`.
 
 O parser também aceita formas como:
 
@@ -99,6 +122,35 @@ personalizadas com `--br-tooltip-width` e `--br-tooltip-max-height` (padrão: `2
 A camada DOM ignora referências dentro de `script`, `style`, `code`, `pre`, controles de formulário, links existentes, botões, conteúdo editável e elementos marcados com `data-bible-references-ignore`.
 
 Quando `getHref` não é informado, o link aponta para a página de leitura do biblias.app, por exemplo `https://biblias.app/acf/rm/1/1-8`. O link do rodapé do tooltip sempre usa o `source` do provider.
+
+### React
+
+O adaptador React fica em um subpath do mesmo pacote. `react` (versão 18 ou superior) é uma dependência peer opcional: quem não usa React não precisa dele.
+
+```tsx
+import { BibleReferencesProvider } from "@coisasdoalto/bible-references/react";
+import "@coisasdoalto/bible-references/style.css";
+
+export function Article({ text }: { text: string }) {
+  return (
+    <BibleReferencesProvider>
+      <p>{text}</p>
+    </BibleReferencesProvider>
+  );
+}
+```
+
+O `BibleReferencesProvider` é um wrapper sobre o `mountBibleReferences` com `observe` ligado. Ele renderiza os filhos dentro de um elemento com `display: contents` e liga as referências de tudo que está dentro, inclusive texto que chega ou muda depois (resposta de API, estado). Não é preciso chamar nada em cada texto bíblico.
+
+Coloque o provider só onde o app mostra texto bíblico. Quanto menor a região, menos a biblioteca precisa ler. Também é possível colocá-lo em volta do app inteiro, e `selector` restringe a busca (`<BibleReferencesProvider selector=".bible">`).
+
+- Recebe as mesmas opções do `mountBibleReferences` (`provider`, `getHref`, `preview`, `theme`, `openIn`, `selector`). Mantenha `provider` e `getHref` estáveis (fora do componente, em `useMemo` ou `useCallback`): quando mudam, a instância é recriada.
+- `container` aceita um elemento ou um `ref`, para anexar o tooltip dentro de um modal. Um `ref` é lido quando o provider renderiza: se o elemento dele aparecer ou mudar sem o provider renderizar de novo (um modal montado por um componente filho, por exemplo), passe o próprio elemento, guardado em estado com um `ref` por callback.
+- `as` troca a tag do wrapper (`"div"` por padrão), e `className`, `style` e as demais props de `div` vão para ele. `display: contents` deixa o wrapper fora do layout, mas seletores como `.pai > p` deixam de enxergar os filhos; use `as` e `className` se precisar de um elemento de verdade.
+- Os links são criados no navegador, depois da montagem. Na renderização no servidor (Astro, Next.js) o HTML sai sem links e sem tooltip, e eles aparecem depois da hidratação.
+- Providers aninhados não fazem sentido: o de fora liga primeiro, e o de dentro não encontra mais texto para ligar.
+
+**Limites conhecidos.** A biblioteca mantém o nó de texto que o React criou e adiciona os links depois dele, então o React consegue atualizar ou remover esse texto. Mesmo assim, ela mexe no DOM por fora do React: não use `normalize()` nos elementos do provider, porque juntar nós de texto desfaz a divisão, e os links não existem no HTML do servidor. O contexto e os casos testados estão em [#8](https://github.com/coisasdoalto/bible-references/issues/8).
 
 ### Provider
 

@@ -2,19 +2,20 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-// Com BIBLE_REFERENCES_LOCAL=1, o exemplo usa o build local da biblioteca (../../dist)
-// em vez do pacote publicado no GitHub Packages.
-const useLocalLibrary = process.env.BIBLE_REFERENCES_LOCAL === "1";
+// O exemplo usa a biblioteca deste repositório (build em ../../dist), não o pacote publicado.
 const dist = fileURLToPath(new URL("../../dist", import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: useLocalLibrary
-      ? [
-          { find: "@coisasdoalto/bible-references/style.css", replacement: `${dist}/style.css` },
-          { find: "@coisasdoalto/bible-references", replacement: `${dist}/index.js` },
-        ]
-      : [],
+    alias: [
+      { find: "@coisasdoalto/bible-references/style.css", replacement: `${dist}/style.css` },
+      { find: "@coisasdoalto/bible-references/react", replacement: `${dist}/react.js` },
+      { find: /^@coisasdoalto\/bible-references$/, replacement: `${dist}/index.js` },
+    ],
+    // Uma única cópia do React: a biblioteca fica fora deste diretório e, sem isso, resolveria o
+    // `react` do repositório raiz.
+    dedupe: ["react", "react-dom"],
   },
+  server: { fs: { allow: ["../.."] } },
 });

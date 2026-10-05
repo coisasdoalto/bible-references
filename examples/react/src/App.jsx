@@ -1,19 +1,47 @@
-import { useRef, useState } from "react";
+import { BibleReferencesProvider } from "@coisasdoalto/bible-references/react";
+import "@coisasdoalto/bible-references/style.css";
+import { useEffect, useRef, useState } from "react";
 
-import { LinkedText } from "./linked-text.jsx";
+const verses = [
+  "Leia Romanos 1:1-8, João 3:16 e 1Co 13:4-7. Capítulo inteiro: Sl 117.",
+  "O Senhor é o meu pastor (Sl 23). Também em Jo 10:11.",
+  "Sl 119:1-20,29,32,34,37-40",
+];
+
+/** Simula uma resposta de API que chega depois da primeira renderização. */
+function useRemoteText() {
+  const [index, setIndex] = useState(0);
+  const [text, setText] = useState(null);
+
+  useEffect(() => {
+    setText(null);
+    const timeout = setTimeout(() => setText(verses[index % verses.length]), 600);
+    return () => clearTimeout(timeout);
+  }, [index]);
+
+  return { text, next: () => setIndex((current) => current + 1) };
+}
 
 export function App() {
   const [text, setText] = useState("Experimente editar: Rm 8:28 e Sl 119:1-20,29,32.");
   const [tooltipInside, setTooltipInside] = useState(true);
   const dialogRef = useRef(null);
+  const remote = useRemoteText();
 
   return (
     <main>
       <h1>Bible References — React</h1>
 
+      <p>
+        Cada seção abaixo usa um <code>BibleReferencesProvider</code> só em volta do texto bíblico.
+        Este parágrafo está fora de qualquer provider: Jo 3:16 não vira link.
+      </p>
+
       <section>
         <h2>Texto estático</h2>
-        <LinkedText text="Leia Romanos 1:1-8, João 3:16 e 1Co 13:4-7. Capítulo inteiro: Sl 117." />
+        <BibleReferencesProvider>
+          <p>Leia Romanos 1:1-8, João 3:16 e 1Co 13:4-7. Capítulo inteiro: Sl 117.</p>
+        </BibleReferencesProvider>
       </section>
 
       <section>
@@ -22,8 +50,28 @@ export function App() {
           Texto
           <input value={text} onChange={(event) => setText(event.target.value)} />
         </label>
-        {/* key: um novo texto cria um novo elemento, que a biblioteca monta do zero. */}
-        <LinkedText key={text} text={text} />
+        {/* Sem key: o React atualiza o texto e a biblioteca liga os links de novo. */}
+        <BibleReferencesProvider>
+          <p>{text}</p>
+        </BibleReferencesProvider>
+      </section>
+
+      <section>
+        <h2>Conteúdo que chega depois</h2>
+        <button type="button" onClick={remote.next}>
+          Carregar outro texto
+        </button>
+        <BibleReferencesProvider>
+          <p>{remote.text ?? "Carregando…"}</p>
+        </BibleReferencesProvider>
+      </section>
+
+      <section>
+        <h2>Só em parte do conteúdo</h2>
+        <BibleReferencesProvider selector=".bible">
+          <p>Ignorado: Jo 1:1.</p>
+          <p className="bible">Lido: Jo 1:1-5.</p>
+        </BibleReferencesProvider>
       </section>
 
       <section>
@@ -41,12 +89,9 @@ export function App() {
         </button>
         <dialog ref={dialogRef}>
           <h3>Nota</h3>
-          {/* key: remonta a biblioteca quando a opção muda. */}
-          <LinkedText
-            key={String(tooltipInside)}
-            text="Compare com Jo 3:16 e Sl 23."
-            tooltipInside={tooltipInside}
-          />
+          <BibleReferencesProvider container={tooltipInside ? dialogRef : undefined}>
+            <p>Compare com Jo 3:16 e Sl 23.</p>
+          </BibleReferencesProvider>
           <button type="button" onClick={() => dialogRef.current?.close()}>
             Fechar
           </button>
