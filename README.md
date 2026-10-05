@@ -106,6 +106,10 @@ Quando `getHref` não é informado, o link aponta para a página de leitura do b
 
 Um `PassageProvider` implementa `getPassage(reference, signal?)` e pode expor `translation` (`{ abbreviation, name }`, usada no cabeçalho e no rodapé) e `source` (`{ id, name, getUrl(reference) }`, usada no link do rodapé). O provider padrão é `createBibliasAppPassageProvider()`.
 
+### Link do rodapé
+
+`openIn: "new-tab" | "current-tab"` (padrão: `"new-tab"`) define onde o link "Ler em biblias.app" abre. Em nova aba, o link usa `rel="noopener noreferrer"`. A referência no texto não navega; clique ou toque abrem o tooltip.
+
 ### Tema e personalização
 
 `mountBibleReferences` aceita `theme: "auto" | "light" | "dark"` (padrão: `"auto"`, que acompanha `prefers-color-scheme`).

@@ -285,4 +285,21 @@ describe("mountBibleReferences", () => {
     expect(tooltip.hidden).toBe(true);
     handle.destroy();
   });
+
+  it("opens the footer link in a new tab by default and in the current tab on request", () => {
+    const footerLink = (openIn?: "current-tab" | "new-tab") => {
+      document.body.innerHTML = "<p>Sl 1</p>";
+      const handle = mountBibleReferences(document.body, {
+        provider: new FakeChapterProvider(),
+        ...(openIn ? { openIn } : {}),
+      });
+      const element = requireFixtureElement<HTMLAnchorElement>(".br-tooltip-link");
+      const attributes = { target: element.getAttribute("target"), rel: element.rel };
+      handle.destroy();
+      return attributes;
+    };
+
+    expect(footerLink()).toEqual({ target: "_blank", rel: "noopener noreferrer" });
+    expect(footerLink("current-tab")).toEqual({ target: null, rel: "" });
+  });
 });

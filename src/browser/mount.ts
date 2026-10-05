@@ -3,7 +3,7 @@ import clsx from "clsx/lite";
 import { bibleReferenceKey, parseBibleReferences } from "../core/parser";
 import type { BibleReference, Passage, PassageProvider } from "../core/types";
 import { buildBibliasAppReadUrl, createBibliasAppPassageProvider } from "../providers/biblias.app";
-import { createTooltipView, type TooltipTheme } from "./tooltip";
+import { createTooltipView, type LinkOpenIn, type TooltipTheme } from "./tooltip";
 
 const SHOW_TEXT = 4;
 const FILTER_ACCEPT = 1;
@@ -24,6 +24,8 @@ export interface MountBibleReferencesOptions {
   readonly preview?: boolean;
   readonly maxPreviewVerses?: number;
   readonly theme?: TooltipTheme;
+  /** Where the tooltip footer link opens. Defaults to "new-tab". */
+  readonly openIn?: LinkOpenIn;
 }
 
 export interface BibleReferencesHandle {
@@ -97,6 +99,7 @@ export function mountBibleReferences(
     id: `br-tooltip-${++tooltipSequence}`,
     translation: provider.translation,
     source: provider.source,
+    openIn: options.openIn ?? "new-tab",
     getFallbackHref: getHref,
   });
   const tooltip = view.element;

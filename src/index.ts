@@ -3,7 +3,7 @@ export {
   type MountBibleReferencesOptions,
   mountBibleReferences,
 } from "./browser/mount";
-export type { TooltipTheme } from "./browser/tooltip";
+export type { LinkOpenIn, TooltipTheme } from "./browser/tooltip";
 export {
   BIBLE_BOOKS,
   type BibleBook,

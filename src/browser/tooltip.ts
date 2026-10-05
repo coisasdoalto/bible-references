@@ -4,12 +4,14 @@ import { formatBibleReference } from "../core/parser";
 import type { BibleReference, Passage, PassageSource, PassageTranslation } from "../core/types";
 
 export type TooltipTheme = "auto" | "light" | "dark";
+export type LinkOpenIn = "current-tab" | "new-tab";
 export type ResolvedTooltipTheme = Exclude<TooltipTheme, "auto">;
 
 export interface TooltipViewOptions {
   readonly id: string;
   readonly translation?: PassageTranslation | undefined;
   readonly source?: PassageSource | undefined;
+  readonly openIn: LinkOpenIn;
   readonly getFallbackHref: (reference: BibleReference) => string;
 }
 
@@ -109,6 +111,10 @@ export function createTooltipView(document: Document, options: TooltipViewOption
   const footer = createElement(document, "div", footerClassName);
   const link = createElement(document, "a", linkClassName);
   const note = createElement(document, "span", noteClassName);
+  if (options.openIn === "new-tab") {
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+  }
   footer.append(link, note);
 
   card.append(header, body, footer);
