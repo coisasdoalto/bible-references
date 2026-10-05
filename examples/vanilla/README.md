@@ -1,24 +1,17 @@
 # Exemplo vanilla
 
-Página HTML simples que usa `@coisasdoalto/bible-references` publicado no GitHub Packages.
-
-## Instalação
-
-O GitHub Packages exige autenticação. Com o GitHub CLI logado, conceda ao token a permissão `read:packages` (uma vez) e instale as dependências:
-
-```sh
-gh auth refresh -s read:packages
-NODE_AUTH_TOKEN=$(gh auth token) bun install
-```
-
-O `.npmrc` deste diretório aponta o escopo `@coisasdoalto` para o registry do GitHub e lê o token da variável `NODE_AUTH_TOKEN`. Não commite o token.
+Página HTML simples que usa a biblioteca deste repositório (`../..`), não o pacote publicado.
 
 ## Uso
 
 ```sh
-bun run dev          # usa a versão publicada
-bun run dev:local    # usa o build local da biblioteca (../../dist)
+bun install
+bun run dev
 bun run build
 ```
+
+`dev` e `build` primeiro rodam o build da biblioteca na raiz (`../../dist`), e o `vite.config.js` aponta `@coisasdoalto/bible-references` para esse build. Não há autenticação do GitHub Packages nem `NODE_AUTH_TOKEN`: o pacote publicado não é usado.
+
+As dependências da raiz precisam estar instaladas (`bun install` na raiz), porque o build da biblioteca roda lá. Depois de mudar o código em `src`, rode `bun run dev` de novo para refazer o build.
 
 Para testar no celular, use `bun run dev -- --host`.
