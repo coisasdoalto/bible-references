@@ -187,7 +187,33 @@ O escopo reservado para o pacote é:
 @coisasdoalto/bible-references
 ```
 
-As versões iniciais serão publicadas no GitHub Packages. A publicação no npm será habilitada depois que a organização for criada por lá.
+As versões iniciais são publicadas no GitHub Packages. A publicação no npm será habilitada depois que a organização for criada por lá.
+
+### Instalação
+
+O GitHub Packages exige autenticação mesmo para pacotes públicos. No projeto consumidor, aponte o escopo para o registry do GitHub e use um token com a permissão `read:packages`:
+
+```ini
+# .npmrc
+@coisasdoalto:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+```
+
+```sh
+bun add @coisasdoalto/bible-references
+```
+
+Não commite o token. Em CI, use uma variável de ambiente ou o `GITHUB_TOKEN` do workflow.
+
+### Publicação de uma versão
+
+A publicação é feita pelo workflow `Publish GitHub Package`, disparado quando uma release é publicada no GitHub. Ele roda `mise run ci`, valida a versão com `mise run release:verify` e publica com `mise run publish:github`, usando o `GITHUB_TOKEN` efêmero do workflow (`packages: write`), sem tokens de longa duração.
+
+1. Atualize `version` em `package.json` por pull request (por exemplo, `0.1.0`) e faça o merge em `main`.
+2. Crie uma release no GitHub com a tag `v<version>` (por exemplo, `v0.1.0`) apontando para esse commit.
+3. Acompanhe o workflow. Se a tag não corresponder à versão do `package.json`, a publicação é interrompida antes de enviar o pacote.
+
+Uma versão publicada não pode ser sobrescrita; para corrigir, publique uma nova versão.
 
 ## Licença
 
