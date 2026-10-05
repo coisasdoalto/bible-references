@@ -14,11 +14,13 @@ const aliasPattern = BIBLE_BOOKS.flatMap((book) => book.aliases)
 const VERSE_ITEM = "\\d{1,3}(?:\\s*[-–—]\\s*\\d{1,3})?";
 // A comma followed by a space only continues the list when the number does not start another
 // reference or a word, so "Jo 3:16, 1 Jo 4:8" and "Jo 3:16, 2 vezes" stop at the first verse.
+// A comma directly followed by a digit always continues the list, so a malformed continuation
+// ("Sl 119:1,2-") rejects the reference instead of backtracking to "Sl 119:1".
 const VERSE_LIST_SEPARATOR = `,(?=\\d)|,\\s+(?=${VERSE_ITEM}(?!\\s*[\\p{L}\\p{N}]))`;
 const VERSE_SELECTION = `${VERSE_ITEM}(?:(?:${VERSE_LIST_SEPARATOR})${VERSE_ITEM})*`;
 
 const REFERENCE_PATTERN = new RegExp(
-  `(?<![\\p{L}\\p{N}])(${aliasPattern})\\.?\\s+(\\d{1,3})(?:\\s*[:.]\\s*(${VERSE_SELECTION}))?(?![\\p{L}\\p{N}]|\\s*[:–—-]|\\s*\\.\\s*\\d)`,
+  `(?<![\\p{L}\\p{N}])(${aliasPattern})\\.?\\s+(\\d{1,3})(?:\\s*[:.]\\s*(${VERSE_SELECTION}))?(?![\\p{L}\\p{N}]|\\s*[:–—-]|\\s*\\.\\s*\\d|,\\d)`,
   "giu",
 );
 

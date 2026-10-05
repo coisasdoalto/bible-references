@@ -23,12 +23,19 @@ describe("parseBibleReferences", () => {
     expect(bibleReferenceKey(range)).toBe("PSA.117.1-2");
   });
 
-  it.each(["Sl 0", "Sl 1170", "Sl 117abc", "Sl 117:", "Sl 117:0", "Sl 117:2-1", "Sl 117-118"])(
-    "does not fall back to a chapter for malformed reference %s",
-    (text) => {
-      expect(parseBibleReferences(text)).toEqual([]);
-    },
-  );
+  it.each([
+    "Sl 0",
+    "Sl 1170",
+    "Sl 117abc",
+    "Sl 117:",
+    "Sl 117:0",
+    "Sl 117:2-1",
+    "Sl 117-118",
+    "Sl 119:1,2-",
+    "Sl 119:1,2:3",
+  ])("does not fall back to a chapter for malformed reference %s", (text) => {
+    expect(parseBibleReferences(text)).toEqual([]);
+  });
   it("parses Portuguese names, abbreviations, separators and ranges", () => {
     const text = "Leia Romanos 1:1-8, Rm 8.28 e 1Co 13:4-7.";
     const references = parseBibleReferences(text);
