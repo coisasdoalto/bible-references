@@ -1,11 +1,9 @@
 import clsx from "clsx/lite";
 
-import { bibleReferenceKey, formatBibleReference, parseBibleReferences } from "../core/parser";
+import { bibleReferenceKey, parseBibleReferences } from "../core/parser";
 import type { BibleReference, Passage, PassageProvider } from "../core/types";
-import {
-  buildBibliasAppPassageUrl,
-  createBibliasAppPassageProvider,
-} from "../providers/biblias.app";
+import { buildBibliasAppReadUrl, createBibliasAppPassageProvider } from "../providers/biblias.app";
+import { createTooltipView, type TooltipTheme } from "./tooltip";
 
 const SHOW_TEXT = 4;
 const FILTER_ACCEPT = 1;
@@ -20,20 +18,12 @@ const referenceClassName = clsx(
   "focus-visible:outline-2 focus-visible:outline-offset-2",
 );
 
-const tooltipClassName = clsx(
-  "br-tooltip",
-  "fixed z-[2147483647] w-max px-3 py-2",
-  "text-sm leading-relaxed shadow-lg",
-);
-
-const tooltipLabelClassName = clsx("mb-1 block font-semibold");
-const tooltipTextClassName = clsx("block");
-
 export interface MountBibleReferencesOptions {
   readonly provider?: PassageProvider;
   readonly getHref?: (reference: BibleReference) => string;
   readonly preview?: boolean;
   readonly maxPreviewVerses?: number;
+  readonly theme?: TooltipTheme;
 }
 
 export interface BibleReferencesHandle {
@@ -76,10 +66,6 @@ function previewReference(reference: BibleReference, maxVerses: number): BibleRe
   };
 }
 
-function formatPassageText(passage: Passage): string {
-  return passage.verses.map((verse) => `${verse.number} ${verse.text}`).join(" ");
-}
-
 /** Link references and display passage previews. Example: mountBibleReferences(document.body). */
 export function mountBibleReferences(
   root: ParentNode,
@@ -88,7 +74,9 @@ export function mountBibleReferences(
   const document = getDocument(root);
   const provider = options.provider ?? createBibliasAppPassageProvider();
   const getHref =
-    options.getHref ?? ((reference: BibleReference) => buildBibliasAppPassageUrl(reference));
+    options.getHref ??
+    ((reference: BibleReference) =>
+      provider.source?.getUrl(reference) ?? buildBibliasAppReadUrl(reference));
   const preview = options.preview ?? true;
   const maxPreviewVerses = options.maxPreviewVerses ?? 8;
 
@@ -102,44 +90,33 @@ export function mountBibleReferences(
   const generatedLinks = new Set<HTMLAnchorElement>();
   const states = new WeakMap<HTMLAnchorElement, LinkState>();
 
-  const tooltip = document.createElement("div");
-  tooltip.id = `br-tooltip-${++tooltipSequence}`;
-  tooltip.className = tooltipClassName;
-  tooltip.setAttribute("role", "tooltip");
-  tooltip.tabIndex = 0;
-  tooltip.hidden = true;
-
-  const tooltipLabel = document.createElement("strong");
-  tooltipLabel.className = tooltipLabelClassName;
-
-  const tooltipText = document.createElement("span");
-  tooltipText.className = tooltipTextClassName;
-
-  tooltip.append(tooltipLabel, tooltipText);
+  const view = createTooltipView(document, {
+    id: `br-tooltip-${++tooltipSequence}`,
+    translation: provider.translation,
+    source: provider.source,
+    getFallbackHref: getHref,
+  });
+  const tooltip = view.element;
   (document.body ?? document.documentElement).append(tooltip);
+
+  const theme = options.theme ?? "auto";
+  const colorScheme =
+    theme === "auto" ? document.defaultView?.matchMedia?.("(prefers-color-scheme: dark)") : null;
+  if (colorScheme) {
+    view.setTheme(colorScheme.matches ? "dark" : "light");
+    colorScheme.addEventListener(
+      "change",
+      (event) => view.setTheme(event.matches ? "dark" : "light"),
+      { signal: eventController.signal },
+    );
+  } else if (theme !== "auto") {
+    view.setTheme(theme);
+  }
 
   let activeLink: HTMLAnchorElement | null = null;
   let tooltipHovered = false;
   let tooltipFocused = false;
   let hideTimeout: ReturnType<typeof setTimeout> | undefined;
-
-  function positionTooltip(link: HTMLAnchorElement): void {
-    const rect = link.getBoundingClientRect();
-    const viewportWidth =
-      document.documentElement.clientWidth || document.defaultView?.innerWidth || 1024;
-    const viewportHeight =
-      document.documentElement.clientHeight || document.defaultView?.innerHeight || 768;
-    const { width, height } = tooltip.getBoundingClientRect();
-    const preferredTop = rect.top >= height + 16 ? rect.top - height : rect.bottom;
-    const top = Math.max(16, Math.min(preferredTop, viewportHeight - height - 16));
-    const left = Math.max(
-      16,
-      Math.min(rect.left + rect.width / 2 - width / 2, viewportWidth - width - 16),
-    );
-
-    tooltip.style.top = `${top}px`;
-    tooltip.style.left = `${left}px`;
-  }
 
   function hideTooltip(link: HTMLAnchorElement): void {
     const state = states.get(link);
@@ -164,15 +141,6 @@ export function mountBibleReferences(
     hideTimeout = setTimeout(() => hideTooltip(link), 150);
   }
 
-  function renderTooltipPassage(passage: Passage, original: BibleReference): void {
-    const selected = passage.reference;
-    const truncated =
-      selected.verseEnd !== null &&
-      original.verseEnd !== null &&
-      selected.verseEnd < original.verseEnd;
-    tooltipText.textContent = `${formatPassageText(passage)}${truncated ? " …" : ""}`;
-  }
-
   async function showTooltip(link: HTMLAnchorElement, reference: BibleReference): Promise<void> {
     if (!preview) {
       return;
@@ -182,18 +150,16 @@ export function mountBibleReferences(
     clearTimeout(hideTimeout);
     link.setAttribute("aria-describedby", tooltip.id);
     tooltip.hidden = false;
-    tooltipLabel.textContent = formatBibleReference(reference);
-    tooltipText.textContent = "Carregando passagem…";
-    tooltip.scrollTop = 0;
-    positionTooltip(link);
+    view.showLoading(reference);
+    view.place(link);
 
     const previewed = previewReference(reference, maxPreviewVerses);
     const key = bibleReferenceKey(previewed);
     const cached = cache.get(key);
 
     if (cached) {
-      renderTooltipPassage(cached, reference);
-      positionTooltip(link);
+      view.showPassage(cached, reference);
+      view.place(link);
       return;
     }
 
@@ -205,12 +171,13 @@ export function mountBibleReferences(
       cache.set(key, passage);
 
       if (activeLink === link) {
-        renderTooltipPassage(passage, reference);
-        positionTooltip(link);
+        view.showPassage(passage, reference);
+        view.place(link);
       }
     } catch {
       if (!controller.signal.aborted && activeLink === link) {
-        tooltipText.textContent = "Não foi possível carregar a passagem.";
+        view.showError(reference, () => void showTooltip(link, reference));
+        view.place(link);
       }
     } finally {
       requestControllers.delete(controller);
@@ -225,7 +192,7 @@ export function mountBibleReferences(
       (event) => {
         if (event.key === "ArrowDown" && activeLink === link && !tooltip.hidden) {
           event.preventDefault();
-          tooltip.focus();
+          view.body.focus();
         }
         handleTooltipKeys(event);
       },
@@ -285,8 +252,11 @@ export function mountBibleReferences(
   function updateTooltipInteraction(event: Event): void {
     if (event.type === "mouseenter" || event.type === "mouseleave") {
       tooltipHovered = event.type === "mouseenter";
+    } else if (event.type === "focusin") {
+      tooltipFocused = true;
     } else {
-      tooltipFocused = event.type === "focus";
+      const next = (event as FocusEvent).relatedTarget;
+      tooltipFocused = next instanceof Node && tooltip.contains(next);
     }
     if (activeLink && !tooltipHovered && !tooltipFocused) {
       scheduleTooltipHide(activeLink);
@@ -295,7 +265,7 @@ export function mountBibleReferences(
 
   function bindTooltipEvents(): void {
     const listenerOptions = { signal: eventController.signal };
-    for (const eventName of ["mouseenter", "mouseleave", "focus", "blur"] as const) {
+    for (const eventName of ["mouseenter", "mouseleave", "focusin", "focusout"] as const) {
       tooltip.addEventListener(eventName, updateTooltipInteraction, listenerOptions);
     }
     tooltip.addEventListener("keydown", handleTooltipKeys, listenerOptions);

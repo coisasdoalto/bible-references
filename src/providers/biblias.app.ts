@@ -1,23 +1,40 @@
 import { type BibleBookId, getBibleBookById } from "../core/books";
-import type { BibleReference, PassageProvider, PassageVerse } from "../core/types";
+import type {
+  BibleReference,
+  PassageProvider,
+  PassageTranslation,
+  PassageVerse,
+} from "../core/types";
 
 export const DEFAULT_BIBLIAS_APP_API_BASE_URL = "https://biblias.app/api/v1/bible/acf/passages";
+export const DEFAULT_BIBLIAS_APP_READ_BASE_URL = "https://biblias.app/acf";
+
+const DEFAULT_TRANSLATION: PassageTranslation = {
+  abbreviation: "ACF",
+  name: "Almeida Corrigida Fiel",
+};
 
 export interface BibliasAppPassageProviderOptions {
+  /** API endpoint that serves passages. */
   readonly baseUrl?: string;
+  /** Site page where a passage can be read. */
+  readonly readBaseUrl?: string;
+  readonly translation?: PassageTranslation;
   readonly bookSlugs?: Partial<Record<BibleBookId, string>>;
   readonly fetch?: typeof globalThis.fetch;
 }
 
-/** Build a biblias.app passage or chapter URL. Example: buildBibliasAppPassageUrl(reference). */
-export function buildBibliasAppPassageUrl(
+type UrlOptions = Pick<BibliasAppPassageProviderOptions, "baseUrl" | "readBaseUrl" | "bookSlugs">;
+
+function buildPassagePath(
+  baseUrl: string,
   reference: BibleReference,
-  options: Pick<BibliasAppPassageProviderOptions, "baseUrl" | "bookSlugs"> = {},
+  bookSlugs: UrlOptions["bookSlugs"],
 ): string {
   const book = getBibleBookById(reference.bookId);
-  const slug = options.bookSlugs?.[reference.bookId] ?? book.apiSlug;
-  const baseUrl = (options.baseUrl ?? DEFAULT_BIBLIAS_APP_API_BASE_URL).replace(/\/$/, "");
-  const chapterUrl = `${baseUrl}/${encodeURIComponent(slug)}/${reference.chapter}`;
+  const slug = bookSlugs?.[reference.bookId] ?? book.apiSlug;
+  const base = baseUrl.replace(/\/$/, "");
+  const chapterUrl = `${base}/${encodeURIComponent(slug)}/${reference.chapter}`;
   if (reference.verseStart === null) {
     return chapterUrl;
   }
@@ -26,6 +43,30 @@ export function buildBibliasAppPassageUrl(
       ? String(reference.verseStart)
       : `${reference.verseStart}-${reference.verseEnd}`;
   return `${chapterUrl}/${verses}`;
+}
+
+/** Build the API URL for a passage or chapter. Example: buildBibliasAppPassageUrl(reference). */
+export function buildBibliasAppPassageUrl(
+  reference: BibleReference,
+  options: Pick<UrlOptions, "baseUrl" | "bookSlugs"> = {},
+): string {
+  return buildPassagePath(
+    options.baseUrl ?? DEFAULT_BIBLIAS_APP_API_BASE_URL,
+    reference,
+    options.bookSlugs,
+  );
+}
+
+/** Build the biblias.app page URL where a passage is read. Example: buildBibliasAppReadUrl(reference). */
+export function buildBibliasAppReadUrl(
+  reference: BibleReference,
+  options: Pick<UrlOptions, "readBaseUrl" | "bookSlugs"> = {},
+): string {
+  return buildPassagePath(
+    options.readBaseUrl ?? DEFAULT_BIBLIAS_APP_READ_BASE_URL,
+    reference,
+    options.bookSlugs,
+  );
 }
 
 /** Fetch verse selections and whole chapters. Example: createBibliasAppPassageProvider({ fetch }).getPassage(reference). */
@@ -39,6 +80,12 @@ export function createBibliasAppPassageProvider(
   }
 
   return {
+    translation: options.translation ?? DEFAULT_TRANSLATION,
+    source: {
+      id: "biblias.app",
+      name: "biblias.app",
+      getUrl: (reference) => buildBibliasAppReadUrl(reference, options),
+    },
     async getPassage(reference, signal) {
       const init: RequestInit = signal ? { signal } : {};
       const response = await fetcher(buildBibliasAppPassageUrl(reference, options), init);

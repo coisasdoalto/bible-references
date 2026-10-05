@@ -5,6 +5,12 @@ import type { BibleReference, Passage, PassageProvider } from "../src/core/types
 
 class FakeChapterProvider implements PassageProvider {
   readonly requests: BibleReference[] = [];
+  readonly translation = { abbreviation: "ACF", name: "Almeida Corrigida Fiel" };
+  readonly source = {
+    id: "biblias.app",
+    name: "biblias.app",
+    getUrl: (reference: BibleReference) => `https://biblias.app/acf/${reference.chapter}`,
+  };
   async getPassage(reference: BibleReference): Promise<Passage> {
     this.requests.push(reference);
     const verses = Array.from({ length: 12 }, (_, index) => ({
@@ -33,7 +39,7 @@ describe("mountBibleReferences", () => {
     await vi.waitFor(() =>
       expect(document.querySelector(".br-tooltip")?.textContent).toContain("12 Versículo 12."),
     );
-    expect(link.href).toBe("https://biblias.app/api/v1/bible/acf/passages/sl/119");
+    expect(link.href).toBe("https://biblias.app/acf/119");
     expect(provider.requests[0]).toMatchObject({ verseStart: null, verseEnd: null });
     link.dispatchEvent(new FocusEvent("focus"));
     expect(provider.requests).toHaveLength(1);
@@ -64,12 +70,13 @@ describe("mountBibleReferences", () => {
     const handle = mountBibleReferences(document.body, { provider: new FakeChapterProvider() });
     const link = requireFixtureElement<HTMLAnchorElement>(".br-reference");
     const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+    const body = requireFixtureElement<HTMLElement>(".br-tooltip-body");
     link.focus();
     link.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
     await vi.advanceTimersByTimeAsync(200);
-    expect(document.activeElement).toBe(tooltip);
+    expect(document.activeElement).toBe(body);
     expect(tooltip.hidden).toBe(false);
-    tooltip.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(document.activeElement).toBe(link);
     expect(tooltip.hidden).toBe(true);
     handle.destroy();
@@ -128,6 +135,97 @@ describe("mountBibleReferences", () => {
     expect(getPassage).toHaveBeenCalledOnce();
     expect(document.querySelector(".br-tooltip")?.textContent).toContain(" …");
 
+    handle.destroy();
+  });
+
+  it("renders header, numbered verses and a branded footer link", async () => {
+    document.body.innerHTML = "<p>Sl 23</p>";
+    const handle = mountBibleReferences(document.body, { provider: new FakeChapterProvider() });
+    const link = requireFixtureElement<HTMLAnchorElement>(".br-reference");
+    link.dispatchEvent(new FocusEvent("focus"));
+    expect(document.querySelector(".br-tooltip")?.getAttribute("data-br-state")).toBe("loading");
+    await vi.waitFor(() =>
+      expect(document.querySelector(".br-tooltip")?.getAttribute("data-br-state")).toBe("ready"),
+    );
+
+    expect(document.querySelector(".br-tooltip-title")?.textContent).toBe("Salmos 23");
+    expect(document.querySelector(".br-tooltip-badge")?.textContent).toBe("ACF");
+    expect(document.querySelectorAll(".br-verse-number")).toHaveLength(12);
+    const footerLink = requireFixtureElement<HTMLAnchorElement>(".br-tooltip-link");
+    expect(footerLink.textContent).toBe("Ler em biblias.app →");
+    expect(footerLink.href).toBe("https://biblias.app/acf/23");
+    expect(document.querySelector(".br-tooltip-note")?.textContent).toBe("Almeida Corrigida Fiel");
+    handle.destroy();
+  });
+
+  it("omits the verse number for a single verse", async () => {
+    document.body.innerHTML = "<p>Jo 3:16</p>";
+    const provider: PassageProvider = {
+      getPassage: async (reference) => ({
+        reference,
+        verses: [{ number: 16, text: "Porque Deus amou o mundo." }],
+        text: "Porque Deus amou o mundo.",
+      }),
+    };
+    const handle = mountBibleReferences(document.body, { provider });
+    requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
+      new FocusEvent("focus"),
+    );
+    await vi.waitFor(() =>
+      expect(document.querySelector(".br-tooltip-body")?.textContent).toContain("Porque Deus"),
+    );
+    expect(document.querySelector(".br-verse-number")).toBeNull();
+    handle.destroy();
+  });
+
+  it("reports how many verses were shown when the preview is truncated", async () => {
+    document.body.innerHTML = "<p>Jo 1:1-18</p>";
+    const provider = new FakeChapterProvider();
+    const handle = mountBibleReferences(document.body, { provider, maxPreviewVerses: 3 });
+    requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
+      new FocusEvent("focus"),
+    );
+    await vi.waitFor(() =>
+      expect(document.querySelector(".br-tooltip-link")?.textContent).toBe(
+        "Continuar em biblias.app →",
+      ),
+    );
+    expect(document.querySelector(".br-tooltip-note")?.textContent).toBe("3 de 18 versículos");
+    handle.destroy();
+  });
+
+  it("shows an error state and retries the request", async () => {
+    document.body.innerHTML = "<p>Sl 91</p>";
+    let calls = 0;
+    const provider: PassageProvider = {
+      getPassage: async (reference) => {
+        calls += 1;
+        if (calls === 1) throw new Error("offline");
+        return { reference, verses: [{ number: 1, text: "Aquele que habita." }], text: "x" };
+      },
+    };
+    const handle = mountBibleReferences(document.body, { provider });
+    requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
+      new FocusEvent("focus"),
+    );
+    await vi.waitFor(() => expect(document.querySelector(".br-tooltip-retry")).not.toBeNull());
+    expect(document.querySelector(".br-tooltip")?.getAttribute("data-br-state")).toBe("error");
+
+    requireFixtureElement<HTMLButtonElement>(".br-tooltip-retry").click();
+    await vi.waitFor(() =>
+      expect(document.querySelector(".br-tooltip-body")?.textContent).toContain("Aquele que"),
+    );
+    expect(calls).toBe(2);
+    handle.destroy();
+  });
+
+  it("applies the requested theme", () => {
+    document.body.innerHTML = "<p>Sl 1</p>";
+    const handle = mountBibleReferences(document.body, {
+      provider: new FakeChapterProvider(),
+      theme: "dark",
+    });
+    expect(document.querySelector(".br-tooltip")?.getAttribute("data-br-theme")).toBe("dark");
     handle.destroy();
   });
 });

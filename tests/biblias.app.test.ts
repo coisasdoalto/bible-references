@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { BibleReference } from "../src/core/types";
 import {
   buildBibliasAppPassageUrl,
+  buildBibliasAppReadUrl,
   createBibliasAppPassageProvider,
   decodeBibliasAppVerses,
 } from "../src/providers/biblias.app";
@@ -101,5 +102,15 @@ describe("biblias.app passage provider", () => {
 
     expect(fetcher).toHaveBeenCalledOnce();
     expect(passage.text).toBe("Primeiro verso Segundo verso");
+  });
+
+  it("exposes the translation and the page where a passage is read", () => {
+    const provider = createBibliasAppPassageProvider({ fetch: new FakeChapterFetch().fetch });
+    expect(provider.translation).toEqual({ abbreviation: "ACF", name: "Almeida Corrigida Fiel" });
+    expect(provider.source).toMatchObject({ id: "biblias.app", name: "biblias.app" });
+    expect(provider.source?.getUrl(reference)).toBe("https://biblias.app/acf/rm/1/1-8");
+    expect(buildBibliasAppReadUrl({ ...reference, verseStart: null, verseEnd: null })).toBe(
+      "https://biblias.app/acf/rm/1",
+    );
   });
 });

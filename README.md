@@ -19,6 +19,8 @@ O primeiro MVP já está implementado. Ele inclui:
 - provider HTTP para a API do biblias.app (tradução ACF);
 - testes de parser, provider e DOM.
 
+O tooltip mostra a referência e a tradução no cabeçalho, os versículos numerados em uma área com rolagem e um rodapé com o link "Ler em biblias.app". Ele tem estados de carregamento, erro (com "Tentar de novo") e passagem truncada, além de tema claro e escuro.
+
 A API usada provisoriamente para os previews é:
 
 ```text
@@ -91,12 +93,22 @@ carrega o capítulo inteiro, sem aplicar `maxPreviewVerses`, usando uma URL como
 
 O tooltip permanece aberto enquanto o link ou o tooltip recebe hover ou foco.
 Com o link focado, pressione `↓` para focar o tooltip e usar as teclas de rolagem;
-`Escape` fecha o tooltip e devolve o foco ao link. A altura máxima pode ser
-personalizada com `--br-tooltip-max-height` (padrão: `24rem`), sempre limitada à tela.
+`Escape` fecha o tooltip e devolve o foco ao link. A largura e a altura máximas podem ser
+personalizadas com `--br-tooltip-width` e `--br-tooltip-max-height` (padrão: `24rem`), sempre limitadas à tela.
 
 A camada DOM ignora referências dentro de `script`, `style`, `code`, `pre`, controles de formulário, links existentes, botões, conteúdo editável e elementos marcados com `data-bible-references-ignore`.
 
-Quando `getHref` não é informado, o link usa provisoriamente o mesmo endpoint do biblias.app usado no preview.
+Quando `getHref` não é informado, o link aponta para a página de leitura do biblias.app, por exemplo `https://biblias.app/acf/rm/1/1-8`. O link do rodapé do tooltip sempre usa o `source` do provider.
+
+### Provider
+
+Um `PassageProvider` implementa `getPassage(reference, signal?)` e pode expor `translation` (`{ abbreviation, name }`, usada no cabeçalho e no rodapé) e `source` (`{ id, name, getUrl(reference) }`, usada no link do rodapé). O provider padrão é `createBibliasAppPassageProvider()`.
+
+### Tema e personalização
+
+`mountBibleReferences` aceita `theme: "auto" | "light" | "dark"` (padrão: `"auto"`, que acompanha `prefers-color-scheme`).
+
+O visual pode ser ajustado com estas custom properties: `--br-accent` (padrão: verde do biblias.app), `--br-reference-color`, `--br-tooltip-width`, `--br-tooltip-max-height`, `--br-tooltip-radius`, `--br-tooltip-background`, `--br-tooltip-color`, `--br-tooltip-muted-color`, `--br-tooltip-header-background`, `--br-tooltip-header-color`, `--br-tooltip-footer-background`, `--br-tooltip-border-color`, `--br-tooltip-link-color`, `--br-tooltip-verse-number-color`, `--br-tooltip-font-family` e `--br-tooltip-ui-font-family`.
 
 ## Ferramentas
 
