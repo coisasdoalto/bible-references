@@ -3,17 +3,4 @@ set -euo pipefail
 
 cd "$MISE_PROJECT_ROOT"
 
-node --input-type=module <<'EOF'
-import fs from "node:fs";
-
-const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
-const expected = `v${pkg.version}`;
-const actual = process.env.RELEASE_TAG;
-
-if (!actual || actual !== expected) {
-  console.error(
-    `Release tag ${actual ?? "<missing>"} does not match package version ${expected}`,
-  );
-  process.exit(1);
-}
-EOF
+node scripts/verify-release.ts

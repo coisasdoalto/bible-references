@@ -255,13 +255,43 @@ bun add @coisasdoalto/bible-references
 
 ### Publicação de uma versão
 
-A automação de publicação no npm ainda será configurada. O fluxo previsto usa GitHub Releases e npm Trusted Publishing via OIDC, sem tokens permanentes de publicação:
+A publicação no npm usa o workflow `Publish npm Package` (`.github/workflows/publish.yml`), acionado por uma GitHub Release estável. Releases marcadas como prerelease não publicam automaticamente. O job usa npm Trusted Publishing via OIDC e gera provenance, sem tokens permanentes de publicação.
 
-1. Atualize `version` em `package.json` por pull request (por exemplo, `0.1.0`) e faça o merge em `main`.
-2. Crie uma release no GitHub com a tag `v<version>` (por exemplo, `v0.1.0`) apontando para esse commit.
-3. Acompanhe o workflow. Se a tag não corresponder à versão do `package.json`, a publicação é interrompida antes de enviar o pacote.
+1. Atualize `version` em `package.json` por pull request e faça o merge em `main`.
+2. Crie uma release no GitHub com a tag `v<version>` apontando para esse commit.
+3. Acompanhe o workflow: ele executa `mise run ci`, valida a tag com `mise run release:verify` e publica com `mise run publish:npm`.
 
-Uma versão publicada não pode ser sobrescrita; para corrigir, publique uma nova versão.
+O `mise run check` inclui `mise run package:check`, que constrói a biblioteca, inspeciona o conteúdo real do tarball e o instala em consumidores temporários vanilla e React. A verificação cobre exports, tipos, CSS, importação ESM e build dos consumidores. Bun continua responsável pelas dependências; o npm CLI é usado para empacotar e publicar.
+
+Uma versão publicada não pode ser sobrescrita. Se o workflow falhar, confira primeiro se a versão existe no npm. Reexecute o job somente se ela não tiver sido publicada; se já existir, valide a instalação e publique uma nova versão para eventuais correções. Não mova uma tag histórica para outro commit.
+
+### Primeira publicação e Trusted Publishing
+
+O pacote precisa existir no npm antes da configuração do Trusted Publisher. O bootstrap é uma publicação interativa do mantenedor, com 2FA, de uma versão inédita. Uma versão preliminar pode usar a tag `next` para não alterar o `latest`.
+
+Depois de revisar o tarball e alinhar a versão, autentique-se no npm:
+
+```fish
+mise exec -- npm login --registry=https://registry.npmjs.org/
+```
+
+Para publicar uma versão preliminar já preparada e validada:
+
+```fish
+mise exec -- npm publish --registry=https://registry.npmjs.org/ --access=public --tag=next
+```
+
+Nas configurações do pacote no npm, adicione um Trusted Publisher do GitHub Actions com:
+
+- Organization or user: `coisasdoalto`.
+- Repository: `bible-references`.
+- Workflow filename: `publish.yml`.
+- Environment: vazio (o workflow não usa um environment).
+- Permissão para publicação direta com `npm publish`.
+
+Configure-o próximo da primeira release automática: a configuração precisa de um primeiro publish bem-sucedido em até dois dias. Depois, publique uma versão estável inédita por GitHub Release e confirme a instalação pública e a provenance. A configuração externa ainda precisa ser concluída antes dessa release.
+
+O job de publicação recebe `id-token: write`; a CI de pull requests permanece somente leitura. Não configure `NPM_TOKEN` em GitHub Secrets nem credenciais no `.npmrc` do projeto. Veja a [documentação de Trusted Publishing](https://docs.npmjs.com/trusted-publishers/).
 
 ## Licença
 

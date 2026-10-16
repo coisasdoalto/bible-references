@@ -2,9 +2,15 @@
 
 ## Project
 
-`@coisasdoalto/bible-references` is a browser-first TypeScript library that will detect Bible references in text, turn them into links, and optionally render passage previews in tooltips. Vanilla HTML/DOM support comes first; React support is a thin wrapper (`src/react`, exported as `@coisasdoalto/bible-references/react`): `BibleReferencesProvider` renders a `display: contents` element and runs `mountBibleReferences` on it with `observe`.
+`@coisasdoalto/bible-references` is a browser-first TypeScript library that detects Bible references in text, turns them into links, and optionally renders passage previews in tooltips. React support is a thin wrapper over the DOM integration (`src/react`, exported as `@coisasdoalto/bible-references/react`): `BibleReferencesProvider` renders a `display: contents` element and runs `mountBibleReferences` on it with `observe`.
 
-The repository now has an initial MVP with a PT-BR parser, normalized reference model, DOM integration, tooltip previews, and a provisional biblias.app HTTP provider (ACF translation). Keep the core independent from provider and framework details as the API evolves.
+The library includes a PT-BR parser, normalized reference model, DOM integration, tooltip previews, and a biblias.app HTTP provider using the ACF translation.
+
+## Writing agent instructions
+
+Describe the project's current behavior and enduring constraints in the present tense. Include instructions that help agents make decisions or perform recurring work.
+
+Keep development history, migration narratives, one-off setup history, and future plans out of this file. Preserve setup and automation details that affect an agent's work, such as hooks changing staged files or temporarily stashing unstaged changes. Omit implementation details or automated checks that do not help agents choose an action or avoid a mistake. Document the required outcome rather than how the project arrived at it, and update existing instructions when decisions change.
 
 ## Toolchain
 
@@ -59,6 +65,12 @@ Do not add `run` or `file` to that metadata-only entry unless intentionally over
 
 Prefer human-readable scripts with clear failures and useful output. File tasks must be executable on Unix.
 
+### Supporting scripts
+
+Use `scripts/` for TypeScript tooling such as package validation and release checks. Run these files directly with Node's native TypeScript support, using `node:` imports and types that do not require compilation. Keep them included in the project's typecheck.
+
+Keep mise tasks as the public command interface. Short commands stay in `mise.toml`; shell orchestration and temporary-directory cleanup belong in `.mise/tasks/`. Put JavaScript/TypeScript logic in `scripts/` rather than embedding it in shell scripts or task definitions.
+
 ## Package management
 
 Use Bun for JavaScript package management. Keep dependency versions exact. Commit `bun.lock` after dependency changes once it has been generated locally.
@@ -91,13 +103,11 @@ Prefer scoped semantic hooks such as `br-*` classes or `data-br-*` attributes on
 
 The Tailwind stylesheet explicitly scans `src` and intentionally omits Preflight. Keep source detection narrow so the generated CSS contains only utilities used by this package.
 
-VS Code configuration includes Tailwind IntelliSense support for classes inside `clsx(...)`.
-
 ## Architecture
 
 Keep the core parser and normalized Bible-reference model independent from the DOM, tooltip implementation, network provider, and React.
 
-Expected direction:
+Module responsibilities:
 
 ```text
 core
@@ -116,7 +126,7 @@ react
   React-specific adapter/components
 ```
 
-React must remain optional and should eventually be a peer dependency rather than bundled into the core package.
+Keep React as an optional peer dependency and external to the library bundle.
 
 For DOM integration, do not rewrite container `innerHTML` to inject references. Operate on text nodes so existing DOM state, event listeners, and framework ownership are preserved.
 
@@ -138,11 +148,9 @@ CI for pull requests must remain read-only and must not expose publishing creden
 
 Third-party GitHub Actions must be pinned to a full commit SHA and retain a version comment. `pinact` enforces this.
 
-Package publishing to GitHub Packages must use the ephemeral GitHub Actions `GITHUB_TOKEN` with least-privilege `packages: write`. Do not introduce a long-lived PAT for publishing.
-
-When npm publishing is added later, prefer npm Trusted Publishing/OIDC instead of a long-lived `NPM_TOKEN`.
-
 ## Releases
+
+Package releases are published to npm by the GitHub Actions release workflow.
 
 The package version in `package.json` must match a release tag in the form `v<version>`. The publish workflow validates this before publishing.
 

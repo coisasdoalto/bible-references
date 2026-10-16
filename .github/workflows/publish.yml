@@ -1,4 +1,4 @@
-name: Publish GitHub Package
+name: Publish npm Package
 
 on:
   release:
@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: publish-${{ github.event.release.tag_name }}
@@ -15,8 +14,12 @@ concurrency:
 
 jobs:
   publish:
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout
@@ -37,7 +40,7 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: mise run release:verify
 
-      - name: Publish to GitHub Packages
+      - name: Publish to npm
         env:
-          NODE_AUTH_TOKEN: ${{ github.token }}
-        run: mise run publish:github
+          NPM_CONFIG_PROVENANCE: "true"
+        run: mise run publish:npm
