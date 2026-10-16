@@ -57,7 +57,7 @@ run = """
 mise run lint
 mise run typecheck
 mise run test
-mise run build
+mise run package:check
 """
 
 [tasks.ci]
@@ -67,6 +67,10 @@ run = "mise run deps:ci && mise run check"
 [tasks."release:verify"]
 description = "Verify that RELEASE_TAG matches package.json version"
 
-[tasks."publish:github"]
-description = "Build and publish the package to GitHub Packages"
-run = "mise run build && bun publish --registry https://npm.pkg.github.com"
+[tasks."package:check"]
+description = "Validate the tarball in independent vanilla and React consumers"
+depends = ["build"]
+
+[tasks."publish:npm"]
+description = "Publish the built package publicly to npm"
+run = "npm publish --registry=https://registry.npmjs.org/ --access=public"

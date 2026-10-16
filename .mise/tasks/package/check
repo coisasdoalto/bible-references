@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$MISE_PROJECT_ROOT"
+temporary=$(mktemp -d)
+trap 'rm -rf "$temporary"' EXIT
+
+npm pack --json --ignore-scripts --cache "$temporary/cache/npm" \
+    --pack-destination "$temporary" >"$temporary/pack.json"
+
+node scripts/check-package.ts "$temporary"
+
+for flavor in vanilla react; do
+    consumer="$temporary/$flavor"
+    bun install --cwd "$consumer" --ignore-scripts --cache-dir "$temporary/cache"
+    node_modules/.bin/tsc --ignoreConfig --noEmit --strict --module esnext --moduleResolution bundler \
+        --target es2022 --lib es2022,dom "$consumer/smoke.ts"
+    node "$consumer/smoke.ts"
+    # Use an explicit config so the smoke build cannot inherit the library's Vite config.
+    printf 'export default {}\n' >"$consumer/vite.config.mjs"
+    node_modules/.bin/vite build "$consumer" --config "$consumer/vite.config.mjs"
+    test -n "$(find "$consumer/dist" -name '*.css' -print -quit)"
+    printf 'Package consumer passed: %s\n' "$flavor"
+done
