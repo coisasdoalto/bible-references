@@ -187,8 +187,6 @@ O visual pode ser ajustado com estas custom properties: `--br-accent` (padrão: 
 - Tailwind CSS v4
 - clsx
 - Lightning CSS
-- GitHub Actions
-- GitHub Packages primeiro; npm depois
 
 ## Desenvolvimento
 
@@ -245,27 +243,19 @@ O escopo reservado para o pacote é:
 @coisasdoalto/bible-references
 ```
 
-As versões iniciais são publicadas no GitHub Packages. A publicação no npm será habilitada depois que a organização for criada por lá.
+O destino de distribuição pública é o npm, sob a organização `coisasdoalto`. A publicação está em preparação.
 
 ### Instalação
 
-O GitHub Packages exige autenticação mesmo para pacotes públicos. No projeto consumidor, aponte o escopo para o registry do GitHub e use um token com a permissão `read:packages`:
-
-```ini
-# .npmrc
-@coisasdoalto:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
-```
+Após a primeira publicação no npm, instale no projeto consumidor sem configuração de registry ou token:
 
 ```sh
 bun add @coisasdoalto/bible-references
 ```
 
-Não commite o token. Em CI, use uma variável de ambiente ou o `GITHUB_TOKEN` do workflow.
-
 ### Publicação de uma versão
 
-A publicação é feita pelo workflow `Publish GitHub Package`, disparado quando uma release é publicada no GitHub. Ele roda `mise run ci`, valida a versão com `mise run release:verify` e publica com `mise run publish:github`, usando o `GITHUB_TOKEN` efêmero do workflow (`packages: write`), sem tokens de longa duração.
+A automação de publicação no npm ainda será configurada. O fluxo previsto usa GitHub Releases e npm Trusted Publishing via OIDC, sem tokens permanentes de publicação:
 
 1. Atualize `version` em `package.json` por pull request (por exemplo, `0.1.0`) e faça o merge em `main`.
 2. Crie uma release no GitHub com a tag `v<version>` (por exemplo, `v0.1.0`) apontando para esse commit.
