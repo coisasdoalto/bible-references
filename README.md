@@ -17,10 +17,10 @@ Por padrão, os textos são buscados no [biblias.app](https://biblias.app), na t
 
 ## Instalação
 
-Para instalar a versão preliminar pelo npm, use a tag `next`:
+Instale pelo npm:
 
 ```fish
-bun add @coisasdoalto/bible-references@next
+bun add @coisasdoalto/bible-references
 ```
 
 Importe também o CSS da biblioteca. Ele contém os estilos necessários para os links e tooltips; você não precisa instalar Tailwind.
