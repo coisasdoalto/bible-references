@@ -51,6 +51,24 @@ assert.equal(manifest.peerDependenciesMeta.react.optional, true);
 assert.deepEqual(manifest.sideEffects, ["**/*.css"]);
 assert.match(await readFile("dist/react.js", "utf8"), /from ["']react["']/);
 
+// The stylesheet runs inside host pages: every class must be namespaced and nothing may target
+// :root, so it cannot clash with the host's own utilities or theme variables.
+const stylesheet = await readFile(manifest.style, "utf8");
+// Keep only selectors: attribute values and declarations may contain dots that are not classes.
+const selectors = stylesheet
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/\{[^{}]*\}/g, "{}")
+  .replace(/(?<!\\)\[[^\]]*\]/g, "");
+const unscopedClasses = [...selectors.matchAll(/\.((?:\\.|[\w-])+)/g)]
+  .map(([, className = ""]) => className)
+  .filter((className) => !/^br(-|\\:)/.test(className));
+assert.deepEqual(
+  [...new Set(unscopedClasses)],
+  [],
+  "Stylesheet has classes without the br- or br: prefix",
+);
+assert.doesNotMatch(selectors, /:root|:host/, "Stylesheet must not target :root or :host");
+
 for (const flavor of ["vanilla", "react"] as const) {
   const consumer = join(temporaryRoot, flavor);
   await mkdir(consumer);

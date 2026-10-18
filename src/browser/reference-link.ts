@@ -6,8 +6,8 @@ import { buildBibliasAppReadUrl } from "../providers/biblias.app";
 
 export const referenceClassName = clsx(
   "br-reference",
-  "cursor-help underline decoration-dotted underline-offset-2",
-  "focus-visible:outline-2 focus-visible:outline-offset-2",
+  "br:cursor-help br:underline br:decoration-dotted br:underline-offset-2",
+  "br:focus-visible:outline-2 br:focus-visible:outline-offset-2",
 );
 
 export type GetHref = (reference: BibleReference) => string;

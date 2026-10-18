@@ -30,39 +30,54 @@ export interface TooltipView {
 const VIEWPORT_MARGIN = 16;
 const ANCHOR_GAP = 12;
 const ARROW_INSET = 16;
-const SKELETON_WIDTHS = ["w-full", "w-11/12", "w-full", "w-3/5"];
+const SKELETON_WIDTHS = ["br:w-full", "br:w-11/12", "br:w-full", "br:w-3/5"];
 
-const rootClassName = clsx("br-tooltip", "fixed z-[2147483647] text-sm leading-relaxed");
-const cardClassName = clsx("br-tooltip-card", "flex flex-col overflow-hidden");
+const rootClassName = clsx(
+  "br-tooltip",
+  "br:fixed br:z-[2147483647] br:text-sm br:leading-relaxed",
+);
+const cardClassName = clsx("br-tooltip-card", "br:flex br:flex-col br:overflow-hidden");
 const headerClassName = clsx(
   "br-tooltip-header",
-  "flex shrink-0 items-center justify-between gap-3 px-3.5 py-2.5",
+  "br:flex br:shrink-0 br:items-center br:justify-between br:gap-3 br:px-3.5 br:py-2.5",
 );
-const titleClassName = clsx("br-tooltip-title", "min-w-0 text-base font-bold break-words");
+const titleClassName = clsx(
+  "br-tooltip-title",
+  "br:min-w-0 br:text-base br:font-bold br:break-words",
+);
 const badgeClassName = clsx(
   "br-tooltip-badge",
-  "rounded-sm px-1.5 text-xs font-bold tracking-wide",
+  "br:rounded-sm br:px-1.5 br:text-xs br:font-bold br:tracking-wide",
 );
-const bodyClassName = clsx("br-tooltip-body", "min-h-0 flex-1 overflow-y-auto px-4 pt-3.5");
-const verseClassName = clsx("br-verse", "mb-2 block");
-const verseNumberClassName = clsx("br-verse-number", "mr-0.5 align-super text-[0.7em] font-bold");
-const skeletonClassName = clsx("br-skeleton", "mb-3 block h-3 rounded-full");
-const messageClassName = clsx("br-tooltip-message", "flex flex-col items-start gap-3");
+const bodyClassName = clsx(
+  "br-tooltip-body",
+  "br:min-h-0 br:flex-1 br:overflow-y-auto br:px-4 br:pt-3.5",
+);
+const verseClassName = clsx("br-verse", "br:mb-2 br:block");
+const verseNumberClassName = clsx(
+  "br-verse-number",
+  "br:mr-0.5 br:align-super br:text-[0.7em] br:font-bold",
+);
+const skeletonClassName = clsx("br-skeleton", "br:mb-3 br:block br:h-3 br:rounded-full");
+const messageClassName = clsx("br-tooltip-message", "br:flex br:flex-col br:items-start br:gap-3");
 const retryClassName = clsx(
   "br-tooltip-retry",
-  "min-h-9 cursor-pointer rounded-lg border px-4 text-sm font-semibold",
+  "br:min-h-9 br:cursor-pointer br:rounded-lg br:border br:px-4 br:text-sm br:font-semibold",
 );
 const footerClassName = clsx(
   "br-tooltip-footer",
-  "flex shrink-0 items-center justify-between gap-3 px-3.5 py-2.5",
+  "br:flex br:shrink-0 br:items-center br:justify-between br:gap-3 br:px-3.5 br:py-2.5",
 );
 const linkClassName = clsx(
   "br-tooltip-link",
-  "inline-flex shrink-0 items-center gap-2 font-semibold whitespace-nowrap",
+  "br:inline-flex br:shrink-0 br:items-center br:gap-2 br:font-semibold br:whitespace-nowrap",
 );
-const iconClassName = clsx("br-tooltip-icon", "block size-[1.125rem] shrink-0 rounded-[0.25rem]");
-const noteClassName = clsx("br-tooltip-note", "text-xs");
-const arrowClassName = clsx("br-tooltip-arrow", "absolute size-3 rotate-45");
+const iconClassName = clsx(
+  "br-tooltip-icon",
+  "br:block br:size-[1.125rem] br:shrink-0 br:rounded-[0.25rem]",
+);
+const noteClassName = clsx("br-tooltip-note", "br:text-xs");
+const arrowClassName = clsx("br-tooltip-arrow", "br:absolute br:size-3 br:rotate-45");
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(value, Math.max(min, max)));
