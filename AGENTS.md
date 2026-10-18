@@ -99,6 +99,8 @@ Use `clsx/lite` for conditional class composition. Keep Tailwind class names com
 
 The public customization contract should use stable CSS custom properties prefixed with `--br-`. Keep Tailwind utility classes an internal implementation detail.
 
+Write every utility class with the `br:` prefix (`br:flex`, `br:focus-visible:outline-2`); the stylesheet imports the theme with `prefix(br) theme(inline)`, so unprefixed utilities are not generated and theme values are inlined instead of set on `:root`. Hand-written classes use the `br-` prefix. This keeps the stylesheet from clashing with a host's own utilities or theme variables, including hosts that also use Tailwind. `package:check` rejects a published stylesheet with any other class or a `:root` selector.
+
 Prefer scoped semantic hooks such as `br-*` classes or `data-br-*` attributes only when consumers need a stable selector. Do not expose generated or incidental utility-class combinations as public API.
 
 The Tailwind stylesheet explicitly scans `src` and intentionally omits Preflight. Keep source detection narrow so the generated CSS contains only utilities used by this package.
