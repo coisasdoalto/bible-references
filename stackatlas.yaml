@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/PabloDinella/stackatlas/main/schema/stackatlas.schema.json
+owner: Coisas do Alto
+group: Bible Stack
+atlas: github:coisasdoalto/stackatlas/atlas.yaml
+
+projects:
+  - name: bible-references
+    type: library
+    url: https://www.npmjs.com/package/@coisasdoalto/bible-references
+    notes: Detecta referências bíblicas (PT-BR) em páginas web e mostra a passagem num tooltip. É a fonte de bible-stack/references.
+    resources:
+      - use: npm/registry
+        notes: "@coisasdoalto/bible-references, publicado a cada release"
+      - use: github/actions
+        notes: CI e publicação no npm
+      - use: bible-stack/api
+        notes: busca os versículos (ACF) para os tooltips
