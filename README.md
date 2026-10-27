@@ -173,6 +173,23 @@ Use `theme` para escolher o tema e variáveis CSS para adaptar as cores e dimens
 
 Para ajustes mais específicos, também estão disponíveis `--br-tooltip-muted-color`, `--br-tooltip-header-background`, `--br-tooltip-header-color`, `--br-tooltip-footer-background`, `--br-tooltip-border-color`, `--br-tooltip-link-color` e `--br-tooltip-verse-number-color`.
 
+### Sobrescrita de estilos
+
+Para ajustar propriedades não cobertas pelas variáveis `--br-*` — como espaçamentos (`padding`), tamanhos de fonte, `z-index` e arredondamento do badge —, use CSS comum direcionado às classes semânticas `.br-*`:
+
+```css
+/* CSS sem camada (fora de @layer) */
+.br-tooltip-header {
+  padding: 0;
+}
+```
+
+O CSS da biblioteca é empacotado nas camadas `@layer components` e `@layer utilities`. Pela especificação da cascata no CSS, regras sem camada (`unlayered`) sempre têm precedência sobre regras dentro de camadas, independentemente da especificidade do seletor.
+
+Se o seu site usa Tailwind ou define estilos dentro de `@layer`, evite colocar as sobrescritas em `@layer base` ou `@layer components`: os utilitários da biblioteca residem na camada `utilities` e vencem essas regras. Escreva as sobrescritas em CSS sem camada ou, se necessário, dentro de `@layer utilities`.
+
+O contrato público de estilos é composto pelas variáveis `--br-*`, pelas classes semânticas `br-*` e pelos atributos de estado `data-br-*` (como `data-br-theme`, `data-br-placement` e `data-br-source`). As classes utilitárias `br:*` geradas pelo Tailwind são detalhes internos de implementação e não devem ser usadas como seletores.
+
 ## Exemplos e desenvolvimento
 
 Os exemplos [vanilla](examples/vanilla) e [React](examples/react) usam a biblioteca do próprio repositório. Cada diretório inclui instruções para executar o exemplo.
