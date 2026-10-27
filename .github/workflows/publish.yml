@@ -33,6 +33,8 @@ jobs:
           version: 2026.9.15
 
       - name: Run checks
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise run ci
 
       - name: Verify release version
