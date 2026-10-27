@@ -15,7 +15,8 @@
     "enabled": true,
     "rules": {
       "preset": "recommended"
-    }
+    },
+    "includes": ["!.opencode/plugins/entire.ts"]
   },
   "assist": {
     "actions": {
