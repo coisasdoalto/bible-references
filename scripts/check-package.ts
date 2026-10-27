@@ -66,7 +66,8 @@ const ALLOWED_UNIVERSAL_SELECTORS = new Set([
 ]);
 
 function stripComments(css: string): string {
-  return css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const commentPattern = /\/\*[\s\S]*?\*\//g;
+  return css.replace(commentPattern, "");
 }
 
 function skipStringLiteral(css: string, startIndex: number, quote: string): number {
@@ -148,17 +149,14 @@ function flattenRules(
   return flat;
 }
 
-function stripBlockBodies(css: string): string {
-  let stripped = css;
-  while (stripped.includes("{")) {
-    stripped = stripped.replace(/\{[^{}]*\}/g, "");
-  }
-  return stripped;
+function stripAttributeSelectors(selector: string): string {
+  const attributeSelectorPattern = /(?<!\\)\[[^\]]*\]/g;
+  return selector.replace(attributeSelectorPattern, "");
 }
 
-function validateScopedClasses(cleanCss: string): void {
-  const selectors = stripBlockBodies(cleanCss).replace(/(?<!\\)\[[^\]]*\]/g, "");
-  const unscopedClasses = [...selectors.matchAll(/\.((?:\\.|[\w-])+)/g)]
+function validateScopedClasses(selector: string): void {
+  const selectorsWithoutAttrs = stripAttributeSelectors(selector);
+  const unscopedClasses = [...selectorsWithoutAttrs.matchAll(/\.((?:\\.|[\w-])+)/g)]
     .map(([, className = ""]) => className)
     .filter((className) => !/^br(-|\\:)/.test(className));
   assert.deepEqual(
@@ -186,7 +184,8 @@ function validatePropertyRule(rule: ParsedPropertyRule): void {
 }
 
 function isUniversalSelector(selector: string): boolean {
-  const parts = selector.split(",").map((s) => s.trim());
+  const cleanedSelector = stripAttributeSelectors(selector);
+  const parts = cleanedSelector.split(",").map((s) => s.trim());
   return parts.some((part) => ALLOWED_UNIVERSAL_SELECTORS.has(part) || part.includes("*"));
 }
 
@@ -221,7 +220,9 @@ function validateStyleRule(rule: ParsedStyleRule): void {
   validateNoRootOrHost(rule.selector);
   if (isUniversalSelector(rule.selector)) {
     validateUniversalSelectorRule(rule);
+    return;
   }
+  validateScopedClasses(rule.selector);
 }
 
 /**
@@ -252,7 +253,6 @@ export function validateStylesheet(stylesheet: string): void {
       validateStyleRule(rule);
     }
   }
-  validateScopedClasses(clean);
 }
 
 function validatePublishedFiles(manifest: PackageManifest, packed: PackedArchive): void {
@@ -280,10 +280,8 @@ function validatePackageManifest(manifest: PackageManifest): void {
   assert.deepEqual(manifest.sideEffects, ["**/*.css"]);
 }
 
-async function createConsumerSmokeFiles(options: ConsumerSmokeOptions): Promise<void> {
+function getConsumerDependencies(options: ConsumerSmokeOptions): Record<string, string> {
   const { flavor, temporaryRoot, manifest, archiveFilename } = options;
-  const consumer = join(temporaryRoot, flavor);
-  await mkdir(consumer);
   const dependencies: Record<string, string> = {
     [manifest.name]: `file:${join(temporaryRoot, archiveFilename)}`,
   };
@@ -291,14 +289,24 @@ async function createConsumerSmokeFiles(options: ConsumerSmokeOptions): Promise<
     dependencies.react = manifest.devDependencies.react;
     dependencies["@types/react"] = manifest.devDependencies["@types/react"];
   }
-  await writeFile(
-    join(consumer, "package.json"),
-    JSON.stringify({ private: true, type: "module", dependencies }),
+  return dependencies;
+}
+
+function getConsumerScript(flavor: "vanilla" | "react"): string {
+  if (flavor === "vanilla") {
+    return (
+      'import { parseBibleReferences } from "@coisasdoalto/bible-references";\n' +
+      'if (parseBibleReferences("Jo 3:16").length !== 1) throw new Error("Expected one parsed reference");\n'
+    );
+  }
+  return (
+    'import { createElement } from "react";\n' +
+    'import { BibleReferencesProvider } from "@coisasdoalto/bible-references/react";\n' +
+    'createElement(BibleReferencesProvider, { selector: ".bible" }, "Jo 3:16");\n'
   );
-  const script =
-    flavor === "vanilla"
-      ? 'import { parseBibleReferences } from "@coisasdoalto/bible-references";\nif (parseBibleReferences("Jo 3:16").length !== 1) throw new Error("Expected one parsed reference");\n'
-      : 'import { createElement } from "react";\nimport { BibleReferencesProvider } from "@coisasdoalto/bible-references/react";\ncreateElement(BibleReferencesProvider, { selector: ".bible" }, "Jo 3:16");\n';
+}
+
+async function writeConsumerEntryFiles(consumer: string, script: string): Promise<void> {
   await writeFile(join(consumer, "smoke.ts"), script);
   await writeFile(
     join(consumer, "browser.ts"),
@@ -310,29 +318,68 @@ async function createConsumerSmokeFiles(options: ConsumerSmokeOptions): Promise<
   );
 }
 
-export async function runPackageCheck(temporaryRoot: string): Promise<void> {
+async function createConsumerSmokeFiles(options: ConsumerSmokeOptions): Promise<void> {
+  const consumer = join(options.temporaryRoot, options.flavor);
+  await mkdir(consumer);
+  const dependencies = getConsumerDependencies(options);
+  const manifestJson = JSON.stringify({ private: true, type: "module", dependencies });
+  await writeFile(join(consumer, "package.json"), manifestJson);
+  const script = getConsumerScript(options.flavor);
+  await writeConsumerEntryFiles(consumer, script);
+}
+
+async function readPackageCheckInputs(temporaryRoot: string): Promise<{
+  readonly packed: PackedArchive;
+  readonly manifest: PackageManifest;
+}> {
   const archives: readonly PackedArchive[] = JSON.parse(
     await readFile(join(temporaryRoot, "pack.json"), "utf8"),
   );
   const packed = archives[0];
   assert(packed, `Invalid pack metadata ${JSON.stringify(archives)}; expected a nonempty array`);
   const manifest: PackageManifest = JSON.parse(await readFile("package.json", "utf8"));
+  return { packed, manifest };
+}
 
-  validatePublishedFiles(manifest, packed);
-  validatePackageManifest(manifest);
-  assert.match(await readFile("dist/react.js", "utf8"), /from ["']react["']/);
-
+async function validatePackageArtifacts(manifest: PackageManifest): Promise<void> {
+  const reactSource = await readFile("dist/react.js", "utf8");
+  assert.match(reactSource, /from ["']react["']/);
   const stylesheet = await readFile(manifest.style, "utf8");
   validateStylesheet(stylesheet);
+}
 
+async function createConsumerSuites(
+  temporaryRoot: string,
+  manifest: PackageManifest,
+  archiveFilename: string,
+): Promise<void> {
   for (const flavor of ["vanilla", "react"] as const) {
     await createConsumerSmokeFiles({
       flavor,
       temporaryRoot,
       manifest,
-      archiveFilename: packed.filename,
+      archiveFilename,
     });
   }
+}
+
+/**
+ * Executes post-build validation checks on a packaged distribution directory.
+ *
+ * Validates manifest files, exported styles, build artifacts, and runs
+ * smoke checks against synthetic vanilla and React consumers.
+ *
+ * @example
+ * ```ts
+ * await runPackageCheck("/tmp/smoke-test-dir");
+ * ```
+ */
+export async function runPackageCheck(temporaryRoot: string): Promise<void> {
+  const { packed, manifest } = await readPackageCheckInputs(temporaryRoot);
+  validatePublishedFiles(manifest, packed);
+  validatePackageManifest(manifest);
+  await validatePackageArtifacts(manifest);
+  await createConsumerSuites(temporaryRoot, manifest, packed.filename);
   console.log(`Validated ${packed.files.length} packaged files (${packed.size} bytes).`);
 }
 

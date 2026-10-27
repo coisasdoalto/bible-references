@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 import { validateStylesheet } from "../scripts/check-package";
@@ -106,5 +107,36 @@ describe("validateStylesheet", () => {
       .br-tooltip { box-sizing: border-box; }
     `;
     expect(() => validateStylesheet(css)).not.toThrow();
+  });
+
+  it("rejects unscoped class inside @layer components", () => {
+    const css = "@layer components { .bad-unscoped { color: red; } }";
+    expect(() => validateStylesheet(css)).toThrow(
+      /Stylesheet has classes without the br- or br: prefix: bad-unscoped/,
+    );
+  });
+
+  it("rejects unscoped class inside @layer utilities", () => {
+    const css = "@layer utilities { .bad-unscoped { display: flex; } }";
+    expect(() => validateStylesheet(css)).toThrow(
+      /Stylesheet has classes without the br- or br: prefix: bad-unscoped/,
+    );
+  });
+
+  it("rejects unscoped class inside @media query", () => {
+    const css = "@media (min-width: 600px) { .bad-unscoped { color: blue; } }";
+    expect(() => validateStylesheet(css)).toThrow(
+      /Stylesheet has classes without the br- or br: prefix: bad-unscoped/,
+    );
+  });
+
+  it("accepts scoped class with attribute substring operator", () => {
+    const css = '.br-tooltip[data-br-placement*="top"] { color: red; }';
+    expect(() => validateStylesheet(css)).not.toThrow();
+  });
+
+  it("accepts the production built dist/style.css stylesheet", async () => {
+    const realCss = await readFile("dist/style.css", "utf8");
+    expect(() => validateStylesheet(realCss)).not.toThrow();
   });
 });
