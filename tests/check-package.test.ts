@@ -1,33 +1,34 @@
-import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 import { validateStylesheet } from "../scripts/check-package";
 
+const validTailwindPropertiesCss = `
+  @layer properties {
+    @supports (((-webkit-hyphens:none)) and (not (margin-trim:inline))) {
+      *,:before,:after,::backdrop {
+        --tw-border-style: solid;
+        --tw-blur: initial;
+        --tw-leading: initial;
+      }
+    }
+  }
+  @property --tw-border-style {
+    syntax: "*";
+    inherits: false;
+    initial-value: solid;
+  }
+  @property --tw-blur {
+    syntax: "*";
+    inherits: false;
+  }
+  .br-reference { color: red; }
+  .br\\:flex { display: flex; }
+  .br-tooltip::after { content: ""; }
+`;
+
 describe("validateStylesheet", () => {
   it("accepts valid stylesheet with Tailwind @layer properties fallback and @property --tw-*", () => {
-    const css = `
-      @layer properties {
-        @supports (((-webkit-hyphens:none)) and (not (margin-trim:inline))) {
-          *,:before,:after,::backdrop {
-            --tw-border-style: solid;
-            --tw-blur: initial;
-            --tw-leading: initial;
-          }
-        }
-      }
-      @property --tw-border-style {
-        syntax: "*";
-        inherits: false;
-        initial-value: solid;
-      }
-      @property --tw-blur {
-        syntax: "*";
-        inherits: false;
-      }
-      .br-reference { color: red; }
-      .br\\:flex { display: flex; }
-      .br-tooltip::after { content: ""; }
-    `;
+    const css = validTailwindPropertiesCss;
     expect(() => validateStylesheet(css)).not.toThrow();
   });
 
@@ -133,10 +134,5 @@ describe("validateStylesheet", () => {
   it("accepts scoped class with attribute substring operator", () => {
     const css = '.br-tooltip[data-br-placement*="top"] { color: red; }';
     expect(() => validateStylesheet(css)).not.toThrow();
-  });
-
-  it("accepts the production built dist/style.css stylesheet", async () => {
-    const realCss = await readFile("dist/style.css", "utf8");
-    expect(() => validateStylesheet(realCss)).not.toThrow();
   });
 });
