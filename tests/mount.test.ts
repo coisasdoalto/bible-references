@@ -380,6 +380,227 @@ describe("mountBibleReferences", () => {
       Object.defineProperty(HTMLElement.prototype, "offsetHeight", heightDescriptor);
   });
 
+  it("constrains tooltip max-height to available space below anchor on short viewports", () => {
+    document.body.innerHTML = "<p>Sl 1</p>";
+    const rectOf = (left: number, top: number, width: number, height: number) =>
+      ({
+        left,
+        top,
+        right: left + width,
+        bottom: top + height,
+        width,
+        height,
+        x: left,
+        y: top,
+      }) as DOMRect;
+
+    const innerHeightSpy = vi.spyOn(window, "innerHeight", "get").mockReturnValue(400);
+    const clientHeightSpy = vi
+      .spyOn(document.documentElement, "clientHeight", "get")
+      .mockReturnValue(400);
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains("br-tooltip")) return rectOf(0, 0, 300, 300);
+        return this.classList.contains("br-reference")
+          ? rectOf(200, 170, 40, 20)
+          : rectOf(0, 0, 0, 0);
+      });
+
+    const handle = mountBibleReferences(document.body, { provider: new FakeChapterProvider() });
+    requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+    const card = requireFixtureElement<HTMLElement>(".br-tooltip-card");
+
+    // spaceBelow = 400 - 190 - 12 - 16 = 182; spaceAbove = 170 - 12 - 16 = 142.
+    // Fits neither (natural height 300), so chooses bottom (182 >= 142) and constrains max-height.
+    expect(tooltip.dataset.brPlacement).toBe("bottom");
+    expect(card.style.maxHeight).toBe("182px");
+    const top = Number.parseFloat(tooltip.style.top);
+    expect(top).toBe(202);
+    expect(top).toBeGreaterThanOrEqual(190);
+    expect(top + 182).toBeLessThanOrEqual(400 - 16);
+
+    handle.destroy();
+    rectSpy.mockRestore();
+    innerHeightSpy.mockRestore();
+    clientHeightSpy.mockRestore();
+  });
+
+  it("constrains tooltip max-height to available space above anchor on short viewports", () => {
+    document.body.innerHTML = "<p>Sl 1</p>";
+    const rectOf = (left: number, top: number, width: number, height: number) =>
+      ({
+        left,
+        top,
+        right: left + width,
+        bottom: top + height,
+        width,
+        height,
+        x: left,
+        y: top,
+      }) as DOMRect;
+
+    const innerHeightSpy = vi.spyOn(window, "innerHeight", "get").mockReturnValue(400);
+    const clientHeightSpy = vi
+      .spyOn(document.documentElement, "clientHeight", "get")
+      .mockReturnValue(400);
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains("br-tooltip")) return rectOf(0, 0, 300, 300);
+        return this.classList.contains("br-reference")
+          ? rectOf(200, 210, 40, 20)
+          : rectOf(0, 0, 0, 0);
+      });
+
+    const handle = mountBibleReferences(document.body, { provider: new FakeChapterProvider() });
+    requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+    const card = requireFixtureElement<HTMLElement>(".br-tooltip-card");
+
+    // spaceBelow = 400 - 230 - 12 - 16 = 142; spaceAbove = 210 - 12 - 16 = 182.
+    // Fits neither (natural height 300), so chooses top (182 > 142) and constrains max-height.
+    expect(tooltip.dataset.brPlacement).toBe("top");
+    expect(card.style.maxHeight).toBe("182px");
+    const top = Number.parseFloat(tooltip.style.top);
+    expect(top).toBe(16);
+    expect(top + 182).toBeLessThanOrEqual(210);
+    expect(top).toBeGreaterThanOrEqual(16);
+
+    handle.destroy();
+    rectSpy.mockRestore();
+    innerHeightSpy.mockRestore();
+    clientHeightSpy.mockRestore();
+  });
+
+  it("clears card max-height on close and keeps it empty when sufficient space exists", () => {
+    document.body.innerHTML = "<p>Sl 1</p>";
+    const rectOf = (left: number, top: number, width: number, height: number) =>
+      ({
+        left,
+        top,
+        right: left + width,
+        bottom: top + height,
+        width,
+        height,
+        x: left,
+        y: top,
+      }) as DOMRect;
+
+    let viewportHeight = 400;
+    const innerHeightSpy = vi
+      .spyOn(window, "innerHeight", "get")
+      .mockImplementation(() => viewportHeight);
+    const clientHeightSpy = vi
+      .spyOn(document.documentElement, "clientHeight", "get")
+      .mockImplementation(() => viewportHeight);
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains("br-tooltip")) return rectOf(0, 0, 300, 300);
+        return this.classList.contains("br-reference")
+          ? rectOf(200, 170, 40, 20)
+          : rectOf(0, 0, 0, 0);
+      });
+
+    const handle = mountBibleReferences(document.body, { provider: new FakeChapterProvider() });
+    const link = requireFixtureElement<HTMLAnchorElement>(".br-reference");
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+
+    const tooltip = requireFixtureElement<HTMLElement>(".br-tooltip");
+    const card = requireFixtureElement<HTMLElement>(".br-tooltip-card");
+    const body = requireFixtureElement<HTMLElement>(".br-tooltip-body");
+
+    expect(card.style.maxHeight).toBe("182px");
+
+    // Close via Escape.
+    body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(tooltip.hidden).toBe(true);
+    expect(card.style.maxHeight).toBe("");
+
+    // Reopen on a tall viewport where natural height fits comfortably.
+    viewportHeight = 800;
+    link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(tooltip.hidden).toBe(false);
+    expect(tooltip.dataset.brPlacement).toBe("bottom");
+    expect(card.style.maxHeight).toBe("");
+
+    handle.destroy();
+    rectSpy.mockRestore();
+    innerHeightSpy.mockRestore();
+    clientHeightSpy.mockRestore();
+  });
+
+  it("scales card max-height in unscaled units inside a transformed container", () => {
+    document.body.innerHTML = "<div id='modal'><p>Sl 1</p></div>";
+    const container = requireFixtureElement<HTMLElement>("#modal");
+    const rectOf = (left: number, top: number, width: number, height: number) =>
+      ({
+        left,
+        top,
+        right: left + width,
+        bottom: top + height,
+        width,
+        height,
+        x: left,
+        y: top,
+      }) as DOMRect;
+
+    const innerHeightSpy = vi.spyOn(window, "innerHeight", "get").mockReturnValue(400);
+    const clientHeightSpy = vi
+      .spyOn(document.documentElement, "clientHeight", "get")
+      .mockReturnValue(400);
+
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains("br-tooltip")) {
+          const left = Number.parseFloat(this.style.left) || 0;
+          const top = Number.parseFloat(this.style.top) || 0;
+          return rectOf(100 + left * 0.5, 50 + top * 0.5, 200, 300);
+        }
+        return this.classList.contains("br-reference")
+          ? rectOf(300, 170, 40, 20)
+          : rectOf(0, 0, 0, 0);
+      });
+
+    const heightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+      configurable: true,
+      get(this: HTMLElement) {
+        // Natural height inside scale(0.5) is 600 unscaled pixels (300 in viewport).
+        return this.classList.contains("br-tooltip") ? 600 : 0;
+      },
+    });
+
+    const handle = mountBibleReferences(container, {
+      provider: new FakeChapterProvider(),
+      container,
+    });
+    requireFixtureElement<HTMLAnchorElement>(".br-reference").dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+
+    const card = requireFixtureElement<HTMLElement>(".br-tooltip-card");
+    // availableSpace = 400 - 190 - 12 - 16 = 182; scaleY = 300 / 600 = 0.5.
+    // Unscaled max-height = 182 / 0.5 = 364px.
+    expect(card.style.maxHeight).toBe("364px");
+
+    handle.destroy();
+    rectSpy.mockRestore();
+    innerHeightSpy.mockRestore();
+    clientHeightSpy.mockRestore();
+    if (heightDescriptor)
+      Object.defineProperty(HTMLElement.prototype, "offsetHeight", heightDescriptor);
+  });
+
   it("does not link references inside its own tooltip when refreshed", async () => {
     document.body.innerHTML = "<div id='root'><p>Sl 23</p></div>";
     const root = requireFixtureElement<HTMLElement>("#root");
