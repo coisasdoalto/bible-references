@@ -83,6 +83,42 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(value, Math.max(min, max)));
 }
 
+interface PlacementLayout {
+  readonly placement: "bottom" | "top";
+  readonly height: number;
+  readonly maxHeight?: number | undefined;
+}
+
+/**
+ * Chooses whether to place the tooltip below or above the anchor, and
+ * calculates the maximum height when available space is constrained.
+ *
+ * @example
+ * ```ts
+ * const layout = resolvePlacement(150, 100, 300);
+ * // layout.placement === "bottom", layout.maxHeight === 150
+ * ```
+ */
+function resolvePlacement(
+  spaceBelow: number,
+  spaceAbove: number,
+  naturalHeight: number,
+): PlacementLayout {
+  if (spaceBelow >= naturalHeight) {
+    return { placement: "bottom", height: naturalHeight };
+  }
+  if (spaceAbove >= naturalHeight) {
+    return { placement: "top", height: naturalHeight };
+  }
+  const placement = spaceBelow >= spaceAbove ? "bottom" : "top";
+  const availableSpace = Math.max(0, placement === "bottom" ? spaceBelow : spaceAbove);
+  return {
+    placement,
+    height: Math.min(naturalHeight, availableSpace),
+    maxHeight: availableSpace,
+  };
+}
+
 function createElement<Name extends keyof HTMLElementTagNameMap>(
   document: Document,
   name: Name,
@@ -255,6 +291,7 @@ export function createTooltipView(document: Document, options: TooltipViewOption
         }
       }
       popoverOpen = false;
+      card.style.maxHeight = "";
       root.hidden = true;
     },
 
@@ -263,6 +300,7 @@ export function createTooltipView(document: Document, options: TooltipViewOption
     },
 
     place(anchor) {
+      card.style.maxHeight = "";
       // A transformed ancestor becomes the containing block of fixed elements and scales their
       // coordinates and size. Measure where the origin lands and how much the ancestor scales,
       // constrain the size in the tooltip's own units, then convert the viewport coordinates into
@@ -280,15 +318,25 @@ export function createTooltipView(document: Document, options: TooltipViewOption
         document.documentElement.clientWidth || document.defaultView?.innerWidth || 1024;
       const viewportHeight =
         document.documentElement.clientHeight || document.defaultView?.innerHeight || 768;
-      const { width, height } = root.getBoundingClientRect();
+      const { width, height: naturalHeight } = root.getBoundingClientRect();
 
       const spaceBelow = viewportHeight - rect.bottom - ANCHOR_GAP - VIEWPORT_MARGIN;
       const spaceAbove = rect.top - ANCHOR_GAP - VIEWPORT_MARGIN;
-      const placement = spaceBelow >= height || spaceBelow >= spaceAbove ? "bottom" : "top";
+      const layout = resolvePlacement(spaceBelow, spaceAbove, naturalHeight);
+
+      if (layout.maxHeight !== undefined) {
+        card.style.maxHeight = `${layout.maxHeight / scaleY}px`;
+      }
 
       const preferredTop =
-        placement === "bottom" ? rect.bottom + ANCHOR_GAP : rect.top - ANCHOR_GAP - height;
-      const top = clamp(preferredTop, VIEWPORT_MARGIN, viewportHeight - height - VIEWPORT_MARGIN);
+        layout.placement === "bottom"
+          ? rect.bottom + ANCHOR_GAP
+          : rect.top - ANCHOR_GAP - layout.height;
+      const top = clamp(
+        preferredTop,
+        VIEWPORT_MARGIN,
+        viewportHeight - layout.height - VIEWPORT_MARGIN,
+      );
 
       const anchorCenter = rect.left + rect.width / 2;
       const left = clamp(
@@ -297,7 +345,7 @@ export function createTooltipView(document: Document, options: TooltipViewOption
         viewportWidth - width - VIEWPORT_MARGIN,
       );
 
-      root.dataset.brPlacement = placement;
+      root.dataset.brPlacement = layout.placement;
       root.style.top = `${(top - origin.top) / scaleY}px`;
       root.style.left = `${(left - origin.left) / scaleX}px`;
       root.style.setProperty(
