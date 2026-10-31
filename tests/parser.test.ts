@@ -123,6 +123,66 @@ describe("parseBibleReferences", () => {
     ]);
   });
 
+  it.each([
+    ["Obadias", "OBA"],
+    ["Filemom", "PHM"],
+    ["2 João", "2JN"],
+    ["3 João", "3JN"],
+    ["Judas", "JUD"],
+  ])("treats a bare number in %s as a verse", (book, bookId) => {
+    const [reference] = parseBibleReferences(`${book} 1`);
+    expect(reference).toMatchObject({ bookId, chapter: 1, verseRanges: [{ start: 1, end: 1 }] });
+    expect(parseBibleReferences(`${book} 7`)[0]).toMatchObject({
+      chapter: 1,
+      verseRanges: [{ start: 7, end: 7 }],
+    });
+    expect(parseBibleReferences(`${book} 1:3`)[0]).toMatchObject({
+      chapter: 1,
+      verseRanges: [{ start: 3, end: 3 }],
+    });
+  });
+
+  it("parses bare verse ranges and lists in single-chapter books", () => {
+    const text = "Leia 2 João 3-4, 7 e 9.";
+    const [reference] = parseBibleReferences(text);
+    expect(reference).toMatchObject({
+      chapter: 1,
+      raw: "2 João 3-4, 7 e 9",
+      verseRanges: [
+        { start: 3, end: 4 },
+        { start: 7, end: 7 },
+        { start: 9, end: 9 },
+      ],
+    });
+    expect(text.slice(reference?.start, reference?.end)).toBe(reference?.raw);
+  });
+
+  it("parses e as a verse-list separator and normalizes its ranges", () => {
+    const [reference] = parseBibleReferences("Ver João 3:16 e 17.");
+    expect(reference?.raw).toBe("João 3:16 e 17");
+    expect(reference?.verseRanges).toEqual([{ start: 16, end: 17 }]);
+    expect(reference && bibleReferenceKey(reference)).toBe("JHN.3.16-17");
+    expect(parseBibleReferences("João 3:16, 18 e 20-21")[0]?.verseRanges).toEqual([
+      { start: 16, end: 16 },
+      { start: 18, end: 18 },
+      { start: 20, end: 21 },
+    ]);
+  });
+
+  it("does not absorb a subsequent numbered reference after e", () => {
+    const references = parseBibleReferences("João 3:16 e 1 João 4:8 e 2 João 7");
+    expect(references.map((reference) => reference.raw)).toEqual([
+      "João 3:16",
+      "1 João 4:8",
+      "2 João 7",
+    ]);
+  });
+
+  it("does not interpret multiple chapters as verse lists", () => {
+    expect(parseBibleReferences("João 3-4")).toEqual([]);
+    expect(parseBibleReferences("João 3 e 4")).toEqual([]);
+  });
+
   it("does not take the next reference or a following word as part of the list", () => {
     const references = parseBibleReferences("Jo 3:16, 1 Jo 4:8 e Rm 8:1, 2 vezes");
     expect(references.map((reference) => reference.raw)).toEqual(["Jo 3:16", "1 Jo 4:8", "Rm 8:1"]);
