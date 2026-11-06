@@ -1,0 +1,1 @@
+Faça merge desse PR e publique uma nova release
