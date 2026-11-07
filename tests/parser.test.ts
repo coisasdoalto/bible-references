@@ -31,7 +31,9 @@ describe("parseBibleReferences", () => {
     "Sl 117:0",
     "Sl 117:2-1",
     "Sl 117-118",
+    "Sl 117‑118",
     "Sl 119:1,2-",
+    "Sl 119:1,2‑",
     "Sl 119:1,2:3",
   ])("does not fall back to a chapter for malformed reference %s", (text) => {
     expect(parseBibleReferences(text)).toEqual([]);
@@ -187,5 +189,30 @@ describe("parseBibleReferences", () => {
     const references = parseBibleReferences("Jo 3:16, 1 Jo 4:8 e Rm 8:1, 2 vezes");
     expect(references.map((reference) => reference.raw)).toEqual(["Jo 3:16", "1 Jo 4:8", "Rm 8:1"]);
     expect(references[0]?.verseRanges).toEqual([{ start: 16, end: 16 }]);
+  });
+
+  it("supports non-breaking hyphens, en dashes, and em dashes in verse ranges (#25)", () => {
+    // U+2011 non-breaking hyphen from biblias.app footnotes (#25)
+    const [footnoteRef] = parseBibleReferences("Sl 91:11‑12.");
+    expect(footnoteRef).toMatchObject({
+      bookId: "PSA",
+      chapter: 91,
+      verseRanges: [{ start: 11, end: 12 }],
+      raw: "Sl 91:11‑12",
+    });
+
+    const [enDashRef] = parseBibleReferences("Rm 8:28–30");
+    expect(enDashRef?.verseRanges).toEqual([{ start: 28, end: 30 }]);
+
+    const [emDashRef] = parseBibleReferences("Jo 1:1—5");
+    expect(emDashRef?.verseRanges).toEqual([{ start: 1, end: 5 }]);
+
+    const [singleChapterRef] = parseBibleReferences("Judas 1‑3");
+    expect(singleChapterRef).toMatchObject({
+      bookId: "JUD",
+      chapter: 1,
+      verseRanges: [{ start: 1, end: 3 }],
+      raw: "Judas 1‑3",
+    });
   });
 });
